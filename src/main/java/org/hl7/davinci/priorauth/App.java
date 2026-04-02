@@ -57,6 +57,7 @@ public class App {
       DB = new Database();
       PriorAuthRule.populateRulesTable();
       AuthUtils.populateClientTable();
+      ClaimResponseFactory.initializeRequestMapping();
     }
   }
 

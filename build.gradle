@@ -78,6 +78,8 @@ dependencies {
     implementation "ca.uhn.hapi.fhir:hapi-fhir-base:${hapiFhirVersion}"
     implementation "ca.uhn.hapi.fhir:hapi-fhir-structures-r4:${hapiFhirVersion}"
     implementation 'com.h2database:h2:1.4.200'
+    implementation 'org.postgresql:postgresql:42.7.3'
+    implementation "ca.uhn.hapi.fhir:hapi-fhir-client:${hapiFhirVersion}"
     implementation 'com.auth0:java-jwt:3.18.2'
     implementation 'com.auth0:jwks-rsa:0.20.0'
 
