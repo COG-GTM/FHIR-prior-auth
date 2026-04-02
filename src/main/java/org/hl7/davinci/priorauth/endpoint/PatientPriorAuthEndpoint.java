@@ -21,6 +21,7 @@ import org.hl7.davinci.priorauth.authorization.AuthUtils;
 import org.hl7.davinci.priorauth.bfd.BfdClientService;
 import org.hl7.davinci.priorauth.bfd.BfdConfiguration;
 import org.hl7.davinci.priorauth.bfd.BfdToPasTransformer;
+import org.hl7.davinci.priorauth.endpoint.Endpoint.RequestType;
 import org.hl7.fhir.instance.model.api.IBaseResource;
 import org.hl7.fhir.r4.model.Bundle;
 import org.hl7.fhir.r4.model.Bundle.BundleEntryComponent;
@@ -56,13 +57,13 @@ public class PatientPriorAuthEndpoint {
     @GetMapping(value = "", produces = { MediaType.APPLICATION_JSON_VALUE, "application/fhir+json" })
     public ResponseEntity<String> getPriorAuthorizationsJson(HttpServletRequest request,
             @RequestParam(name = "patient") String patientMbi) {
-        return getPriorAuthorizations(patientMbi, request);
+        return getPriorAuthorizations(patientMbi, request, RequestType.JSON);
     }
 
     @GetMapping(value = "", produces = { MediaType.APPLICATION_XML_VALUE, "application/fhir+xml" })
     public ResponseEntity<String> getPriorAuthorizationsXml(HttpServletRequest request,
             @RequestParam(name = "patient") String patientMbi) {
-        return getPriorAuthorizations(patientMbi, request);
+        return getPriorAuthorizations(patientMbi, request, RequestType.XML);
     }
 
     /**
@@ -73,7 +74,7 @@ public class PatientPriorAuthEndpoint {
      * @param request    the HTTP request
      * @return ResponseEntity with the search result Bundle
      */
-    private ResponseEntity<String> getPriorAuthorizations(String patientMbi, HttpServletRequest request) {
+    private ResponseEntity<String> getPriorAuthorizations(String patientMbi, HttpServletRequest request, RequestType requestType) {
         logger.info("GET /PriorAuthorization?patient=" + maskMbi(patientMbi));
         App.setBaseUrl(Endpoint.getServiceBaseUrl(request));
 
@@ -157,11 +158,12 @@ public class PatientPriorAuthEndpoint {
                 responseBundle.addEntry(patientEntry);
             }
 
-            String formattedData = FhirUtils.json(responseBundle);
+            String formattedData = FhirUtils.getFormattedData(responseBundle, requestType);
+            MediaType contentType = requestType == RequestType.JSON ? MediaType.APPLICATION_JSON : MediaType.APPLICATION_XML;
             Audit.createAuditEvent(AuditEventType.REST, AuditEventAction.R, auditOutcome, null, request,
                     "GET /PriorAuthorization?patient=" + maskMbi(patientMbi));
             return ResponseEntity.status(HttpStatus.OK)
-                    .contentType(MediaType.APPLICATION_JSON)
+                    .contentType(contentType)
                     .body(formattedData);
 
         } catch (Exception e) {

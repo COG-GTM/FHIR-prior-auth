@@ -310,8 +310,14 @@ public class Database {
     IBaseResource result = null;
     if (table != null && constraintParams != null) {
       try (Connection connection = getConnection()) {
-        String sql = "SELECT TOP 1 id, patient, resource FROM " + table.value() + " WHERE "
-            + generateClause(constraintParams, WHERE_CONCAT) + " ORDER BY timestamp DESC;";
+        String sql;
+        if ("postgresql".equals(dbType)) {
+          sql = "SELECT id, patient, resource FROM " + table.value() + " WHERE "
+              + generateClause(constraintParams, WHERE_CONCAT) + " ORDER BY timestamp DESC LIMIT 1;";
+        } else {
+          sql = "SELECT TOP 1 id, patient, resource FROM " + table.value() + " WHERE "
+              + generateClause(constraintParams, WHERE_CONCAT) + " ORDER BY timestamp DESC;";
+        }
         Collection<Map<String, Object>> maps = new HashSet<Map<String, Object>>();
         maps.add(constraintParams);
         PreparedStatement stmt = generateStatement(sql, maps, connection);
@@ -410,8 +416,14 @@ public class Database {
     if (table != null && constraintParams != null && column != null) {
       try (Connection connection = getConnection()) {
         // TODO: fix this so it does not insert a string (column) into the SQL
-        String sql = "SELECT TOP 1 " + column + " FROM " + table.value() + " WHERE "
-            + generateClause(constraintParams, WHERE_CONCAT) + " ORDER BY timestamp DESC;";
+        String sql;
+        if ("postgresql".equals(dbType)) {
+          sql = "SELECT " + column + " FROM " + table.value() + " WHERE "
+              + generateClause(constraintParams, WHERE_CONCAT) + " ORDER BY timestamp DESC LIMIT 1;";
+        } else {
+          sql = "SELECT TOP 1 " + column + " FROM " + table.value() + " WHERE "
+              + generateClause(constraintParams, WHERE_CONCAT) + " ORDER BY timestamp DESC;";
+        }
         Collection<Map<String, Object>> maps = new HashSet<Map<String, Object>>();
         maps.add(constraintParams);
         PreparedStatement stmt = generateStatement(sql, maps, connection);

@@ -277,16 +277,18 @@ public class BfdToPasTransformer {
                 String code = coding.getCode();
                 if (code != null) {
                     switch (code) {
-                        case "71":  // Inpatient
-                        case "72":  // Outpatient
-                        case "60":  // Inpatient (alternate)
+                        case "60":  // Inpatient
+                        case "40":  // Outpatient
+                        case "20":  // SNF
+                        case "10":  // HHA
+                        case "50":  // Hospice
                             claimType.addCoding(new Coding()
                                     .setSystem("http://terminology.hl7.org/CodeSystem/claim-type")
                                     .setCode("institutional")
                                     .setDisplay("Institutional"));
                             break;
-                        case "81":  // DME
-                        case "82":  // HHA
+                        case "71":  // Carrier
+                        case "82":  // DME
                             claimType.addCoding(new Coding()
                                     .setSystem("http://terminology.hl7.org/CodeSystem/claim-type")
                                     .setCode("professional")

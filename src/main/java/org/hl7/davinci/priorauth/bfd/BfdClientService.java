@@ -18,9 +18,15 @@ import org.hl7.fhir.r4.model.Patient;
 import org.hl7.fhir.r4.model.Resource;
 import org.hl7.fhir.r4.model.ResourceType;
 
+import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import ca.uhn.fhir.rest.client.api.ServerValidationModeEnum;
+import ca.uhn.fhir.rest.client.impl.RestfulClientFactory;
 import ca.uhn.fhir.rest.client.interceptor.BearerTokenAuthInterceptor;
+
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.ssl.SSLContexts;
 
 /**
  * Service for communicating with the BFD (Beneficiary FHIR Data) API.
@@ -32,6 +38,7 @@ public class BfdClientService {
     private static final Logger logger = PALogger.getLogger();
 
     private final BfdConfiguration configuration;
+    private FhirContext bfdFhirContext;
     private IGenericClient fhirClient;
     private boolean initialized = false;
 
@@ -56,23 +63,32 @@ public class BfdClientService {
         }
 
         try {
+            // Create a dedicated FhirContext for BFD to avoid modifying the global one
+            bfdFhirContext = FhirContext.forR4();
+
             // Disable server validation to avoid metadata fetch on startup
-            App.getFhirContext().getRestfulClientFactory()
+            bfdFhirContext.getRestfulClientFactory()
                     .setServerValidationMode(ServerValidationModeEnum.NEVER);
 
             // Set connection timeouts
-            App.getFhirContext().getRestfulClientFactory().setConnectTimeout(30000);
-            App.getFhirContext().getRestfulClientFactory().setSocketTimeout(60000);
-
-            fhirClient = App.getFhirContext().newRestfulGenericClient(configuration.getServerUrl());
+            bfdFhirContext.getRestfulClientFactory().setConnectTimeout(30000);
+            bfdFhirContext.getRestfulClientFactory().setSocketTimeout(60000);
 
             // Configure mTLS if available
             if (configuration.isMtlsConfigured()) {
                 SSLContext sslContext = configuration.buildSslContext();
                 if (sslContext != null) {
+                    // Apply the SSLContext to the underlying Apache HttpClient
+                    CloseableHttpClient httpClient = HttpClients.custom()
+                            .setSSLContext(sslContext)
+                            .build();
+                    ((RestfulClientFactory) bfdFhirContext.getRestfulClientFactory())
+                            .setHttpClient(httpClient);
                     logger.info("BfdClientService::initialize: mTLS configured for BFD connection");
                 }
             }
+
+            fhirClient = bfdFhirContext.newRestfulGenericClient(configuration.getServerUrl());
 
             // Add bearer token auth if configured
             String bearerToken = System.getenv("BFD_BEARER_TOKEN");
