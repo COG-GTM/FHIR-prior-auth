@@ -151,6 +151,8 @@ public class Database {
     sql = sql.replace(" CLOB", " TEXT");
     // H2 IDENTITY -> PostgreSQL SERIAL
     sql = sql.replace(" IDENTITY", " SERIAL");
+    // H2 datetime -> PostgreSQL timestamp
+    sql = sql.replace(" datetime", " timestamp");
     // Use CREATE TABLE IF NOT EXISTS for idempotent schema creation
     sql = sql.replace("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ");
     // Fix duplicate IF NOT EXISTS

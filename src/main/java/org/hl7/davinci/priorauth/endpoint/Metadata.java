@@ -163,9 +163,7 @@ public class Metadata {
     rest.addResource(condition);
     rest.addResource(procedure);
     rest.addResource(bundle);
-    CapabilityStatementRestResourceComponent priorAuthorization = getPriorAuthorization();
     rest.addResource(subscription);
-    rest.addResource(priorAuthorization);
 
     // operation
     rest.addOperation().setName("expunge")
@@ -212,10 +210,21 @@ public class Metadata {
   private CapabilityStatementRestResourceComponent getClaimResponse() {
     CapabilityStatementRestResourceComponent claimResponse = new CapabilityStatementRestResourceComponent();
     claimResponse.setType("ClaimResponse");
-    // TODO claimResponse.setSupportedProfile(theSupportedProfile);
+
+    claimResponse.addSupportedProfile(
+        "http://hl7.org/fhir/us/davinci-pas/StructureDefinition/profile-claimresponse");
+    claimResponse.addSupportedProfile(
+        "http://hl7.org/fhir/us/carin-bb/StructureDefinition/C4BB-ExplanationOfBenefit");
+
     claimResponse.addInteraction().setCode(TypeRestfulInteraction.READ);
     claimResponse.addInteraction().setCode(TypeRestfulInteraction.SEARCHTYPE);
     claimResponse.addInteraction().setCode(TypeRestfulInteraction.DELETE);
+
+    claimResponse.addSearchParam().setName("patient").setType(Enumerations.SearchParamType.TOKEN)
+        .setDefinition("http://hl7.org/fhir/SearchParameter/ClaimResponse-patient")
+        .setDocumentation(
+            "Search for prior authorization decisions by patient MBI. Endpoint: GET /PriorAuthorization?patient={mbi}");
+
     return claimResponse;
   }
 
@@ -338,25 +347,6 @@ public class Metadata {
     return procedure;
   }
 
-  private CapabilityStatementRestResourceComponent getPriorAuthorization() {
-    CapabilityStatementRestResourceComponent priorAuth = new CapabilityStatementRestResourceComponent();
-    priorAuth.setType("ClaimResponse");
-
-    priorAuth.addSupportedProfile(
-        "http://hl7.org/fhir/us/davinci-pas/StructureDefinition/profile-claimresponse");
-    priorAuth.addSupportedProfile(
-        "http://hl7.org/fhir/us/carin-bb/StructureDefinition/C4BB-ExplanationOfBenefit");
-
-    priorAuth.addInteraction().setCode(TypeRestfulInteraction.READ);
-    priorAuth.addInteraction().setCode(TypeRestfulInteraction.SEARCHTYPE);
-
-    priorAuth.addSearchParam().setName("patient").setType(Enumerations.SearchParamType.TOKEN)
-        .setDefinition("http://hl7.org/fhir/SearchParameter/ClaimResponse-patient")
-        .setDocumentation(
-            "Search for prior authorization decisions by patient MBI. Endpoint: GET /PriorAuthorization?patient={mbi}");
-
-    return priorAuth;
-  }
 
   private CapabilityStatementRestResourceComponent getSubscriptionResponse() {
     CapabilityStatementRestResourceComponent subscriptionResponse = new CapabilityStatementRestResourceComponent();

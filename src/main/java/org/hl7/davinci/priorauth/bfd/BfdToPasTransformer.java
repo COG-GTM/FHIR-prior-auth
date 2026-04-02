@@ -252,15 +252,10 @@ public class BfdToPasTransformer {
             if (MBI_SYSTEM.equals(id.getSystem())) {
                 return id.getValue();
             }
-            // Also check for BFD-specific MBI system
-            if ("https://bluebutton.cms.gov/resources/variables/bene_id".equals(id.getSystem())) {
+            // Also check for BFD-specific MBI system (current MBI, not bene_id)
+            if ("http://hl7.org/fhir/sid/us-medicare".equals(id.getSystem())) {
                 return id.getValue();
             }
-        }
-
-        // Fall back to first identifier
-        if (!patient.getIdentifier().isEmpty()) {
-            return patient.getIdentifierFirstRep().getValue();
         }
 
         return null;

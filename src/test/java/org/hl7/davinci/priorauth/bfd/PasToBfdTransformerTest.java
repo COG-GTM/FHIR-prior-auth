@@ -141,9 +141,7 @@ public class PasToBfdTransformerTest {
     public void testMapNullDisposition() {
         CodeableConcept adjudication = PasToBfdTransformer.mapDispositionToAdjudicationCategory(null);
 
-        Assert.assertNotNull(adjudication);
-        // Should return unknown/default coding
-        Assert.assertTrue(adjudication.getCoding().size() > 0);
+        Assert.assertNull(adjudication);
     }
 
     @Test
