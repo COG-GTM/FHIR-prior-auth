@@ -126,7 +126,13 @@ public class Database {
       } else {
         sql = sql.replace("\"", "");
       }
-      connection.prepareStatement(sql).execute();
+      if ("postgresql".equals(dbType)) {
+        // PostgreSQL JDBC driver rejects multi-statement SQL via PreparedStatement
+        // (Extended Query protocol only supports single commands). Use Statement instead.
+        connection.createStatement().execute(sql);
+      } else {
+        connection.prepareStatement(sql).execute();
+      }
       logger.fine(sql);
 
       style = new String(Files.readAllBytes(Paths.get(relativePath + styleFile).toAbsolutePath()));
@@ -145,19 +151,46 @@ public class Database {
    * @param sql the H2-compatible SQL
    * @return PostgreSQL-compatible SQL
    */
+  // PostgreSQL reserved words used as column names in the schema.
+  // These must remain quoted in DDL and DML to avoid syntax errors.
+  private static final java.util.Set<String> POSTGRES_RESERVED_COLUMNS =
+      new java.util.HashSet<>(java.util.Arrays.asList("end"));
+
   private String adaptSqlForPostgresql(String sql) {
+    // Preserve quotes around PostgreSQL reserved words before blanket-stripping
+    for (String reserved : POSTGRES_RESERVED_COLUMNS) {
+      sql = sql.replace("\"" + reserved + "\"", "__RESERVED_" + reserved.toUpperCase() + "__");
+    }
     sql = sql.replace("\"", "");
+    // Restore quotes around reserved words
+    for (String reserved : POSTGRES_RESERVED_COLUMNS) {
+      sql = sql.replace("__RESERVED_" + reserved.toUpperCase() + "__", "\"" + reserved + "\"");
+    }
     // H2 CLOB -> PostgreSQL TEXT
     sql = sql.replace(" CLOB", " TEXT");
     // H2 IDENTITY -> PostgreSQL SERIAL
     sql = sql.replace(" IDENTITY", " SERIAL");
     // H2 datetime -> PostgreSQL timestamp
     sql = sql.replace(" datetime", " timestamp");
+    // Remove H2 transaction wrappers (PostgreSQL auto-commits DDL by default)
+    sql = sql.replace("BEGIN TRANSACTION;", "");
+    sql = sql.replace("COMMIT;", "");
     // Use CREATE TABLE IF NOT EXISTS for idempotent schema creation
     sql = sql.replace("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ");
     // Fix duplicate IF NOT EXISTS
     sql = sql.replace("IF NOT EXISTS IF NOT EXISTS", "IF NOT EXISTS");
     return sql;
+  }
+
+  /**
+   * Quote a column name if it is a PostgreSQL reserved word.
+   * For H2, column names are returned as-is.
+   */
+  private String quoteColumn(String column) {
+    if ("postgresql".equals(dbType) && POSTGRES_RESERVED_COLUMNS.contains(column.toLowerCase())) {
+      return "\"" + column + "\"";
+    }
+    return column;
   }
 
   /**
@@ -687,7 +720,7 @@ public class Database {
     String sqlStr = "";
     for (Iterator<String> iterator = map.keySet().iterator(); iterator.hasNext();) {
       column = iterator.next();
-      sqlStr += column + " = ?";
+      sqlStr += quoteColumn(column) + " = ?";
 
       if (iterator.hasNext())
         sqlStr += separator;
@@ -703,7 +736,9 @@ public class Database {
    * @return a string of each key concatenated by ", "
    */
   private String setColumns(Set<String> keys) {
-    Optional<String> reducedArr = Arrays.stream(keys.toArray(new String[0])).reduce((str1, str2) -> str1 + ", " + str2);
+    Optional<String> reducedArr = Arrays.stream(keys.toArray(new String[0]))
+        .map(this::quoteColumn)
+        .reduce((str1, str2) -> str1 + ", " + str2);
     return reducedArr.get();
   }
 
