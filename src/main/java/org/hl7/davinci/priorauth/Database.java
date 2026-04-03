@@ -166,8 +166,8 @@ public class Database {
     for (String reserved : POSTGRES_RESERVED_COLUMNS) {
       sql = sql.replace("__RESERVED_" + reserved.toUpperCase() + "__", "\"" + reserved + "\"");
     }
-    // H2 CLOB -> PostgreSQL TEXT
-    sql = sql.replace(" CLOB", " TEXT");
+    // H2 CLOB/clob -> PostgreSQL TEXT
+    sql = sql.replace(" clob", " TEXT").replace(" CLOB", " TEXT");
     // H2 IDENTITY -> PostgreSQL SERIAL
     sql = sql.replace(" IDENTITY", " SERIAL");
     // H2 datetime -> PostgreSQL timestamp
