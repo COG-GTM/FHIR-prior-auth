@@ -1,0 +1,33 @@
+graph TB
+    subgraph CMS["CMS-0057-F Final Rule — Five Pillars"]
+        P1["1. Patient Access API<br/>━━━━━━━━━━━━━<br/>FHIR R4 API for patients to<br/>access claims, coverage, and<br/>prior auth decisions"]
+        P2["2. Prior Authorization API<br/>━━━━━━━━━━━━━<br/>FHIR-based PA request<br/>submission and status<br/>tracking (Da Vinci PAS)"]
+        P3["3. Provider Access API<br/>━━━━━━━━━━━━━<br/>Provider-facing API for<br/>patient data exchange<br/>with opt-out capability"]
+        P4["4. Payer-to-Payer API<br/>━━━━━━━━━━━━━<br/>Bulk FHIR data exchange<br/>between payers for<br/>member transitions"]
+        P5["5. PA Documentation<br/>& Decision Requirements<br/>━━━━━━━━━━━━━<br/>Response timeframes,<br/>reason codes, and status<br/>reporting requirements"]
+    end
+
+    subgraph Status["Implementation Coverage"]
+        S1["COVERED<br/>BFD Patient data +<br/>PAS ClaimResponse +<br/>PatientPriorAuthEndpoint"]
+        S2["COVERED<br/>PAS RI $submit +<br/>$inquiry + BFD<br/>enrichment layer"]
+        S3["GAP<br/>Provider Access API<br/>not yet implemented"]
+        S4["GAP<br/>Payer-to-Payer<br/>Bulk FHIR not<br/>yet implemented"]
+        S5["PARTIAL<br/>PAS RI supports<br/>dispositions; BFD adds<br/>historical context"]
+    end
+
+    P1 --> S1
+    P2 --> S2
+    P3 --> S3
+    P4 --> S4
+    P5 --> S5
+
+    style P1 fill:#e8f5e9,stroke:#2e7d32
+    style P2 fill:#e8f5e9,stroke:#2e7d32
+    style P3 fill:#ffebee,stroke:#c62828
+    style P4 fill:#ffebee,stroke:#c62828
+    style P5 fill:#fff8e1,stroke:#f9a825
+    style S1 fill:#c8e6c9,stroke:#2e7d32
+    style S2 fill:#c8e6c9,stroke:#2e7d32
+    style S3 fill:#ffcdd2,stroke:#c62828
+    style S4 fill:#ffcdd2,stroke:#c62828
+    style S5 fill:#fff9c4,stroke:#f9a825

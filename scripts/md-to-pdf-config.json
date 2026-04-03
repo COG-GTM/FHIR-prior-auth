@@ -1,0 +1,27 @@
+{
+  "pdf_options": {
+    "format": "Letter",
+    "margin": {
+            "top": "0.5in",
+            "bottom": "0.5in",
+            "left": "0.5in",
+            "right": "0.5in"
+    },
+    "displayHeaderFooter": true,
+    "headerTemplate": "<div style=\"font-size: 8px; width: 100%; text-align: center; color: #666;\">CMS-0057-F Compliance: BFD-to-PAS Integration Architecture</div>",
+    "footerTemplate": "<div style=\"font-size: 8px; width: 100%; text-align: center; color: #666;\">Page <span class=\"pageNumber\"></span> of <span class=\"totalPages\"></span></div>",
+    "printBackground": true
+  },
+  "stylesheet": [],
+  "css": "body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 11pt; line-height: 1.6; color: #333; } img { max-width: 100%; height: auto; display: block; margin: 0.5em auto; page-break-inside: avoid; } h1 { color: #1a237e; border-bottom: 3px solid #1a237e; padding-bottom: 8px; page-break-after: avoid; } h2 { color: #283593; border-bottom: 1px solid #c5cae9; padding-bottom: 5px; margin-top: 1.5em; page-break-after: avoid; } h3 { color: #3949ab; page-break-after: avoid; } table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 9.5pt; page-break-inside: avoid; } th { background-color: #1a237e; color: white; padding: 8px 10px; text-align: left; font-weight: 600; } td { padding: 6px 10px; border: 1px solid #e0e0e0; } tr:nth-child(even) { background-color: #f5f5f5; } tr:hover { background-color: #e8eaf6; } code { background-color: #f5f5f5; padding: 2px 4px; border-radius: 3px; font-size: 9pt; } pre { background-color: #f5f5f5; padding: 12px; border-radius: 5px; border: 1px solid #e0e0e0; overflow-x: auto; page-break-inside: avoid; } blockquote { border-left: 4px solid #1a237e; margin-left: 0; padding-left: 16px; color: #555; } hr { border: none; border-top: 2px solid #c5cae9; margin: 2em 0; } strong { color: #1a237e; } .mermaid { page-break-inside: avoid; margin: 1em 0; }",
+  "marked_options": {
+    "gfm": true,
+    "breaks": false
+  },
+  "launch_options": {
+    "args": [
+      "--no-sandbox",
+      "--disable-setuid-sandbox"
+    ]
+  }
+}

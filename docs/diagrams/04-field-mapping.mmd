@@ -1,0 +1,24 @@
+graph TB
+    subgraph BFD["BFD Resources (Source)"]
+        direction LR
+        BPatient["Patient / MBI"]
+        BEOB["ExplanationOfBenefit<br/>(8 Claim Types)"]
+        BCoverage["Coverage<br/>(Part A/B/C/D)"]
+        BPACClaim["PAC Claim<br/>(FISS + MCS)"]
+        BPACResp["PAC ClaimResponse"]
+    end
+
+    subgraph PAS["PAS Resources (Target)"]
+        direction LR
+        PClaim["Claim"]
+        PResponse["ClaimResponse"]
+    end
+
+    BPatient -->|"MBI → patient ref"| PClaim
+    BEOB -->|"procedures → productOrService<br/>diagnosis → supportingInfo"| PClaim
+    BCoverage -->|"plan ID → insurance"| PClaim
+    BPACClaim -->|"status → provider context"| PClaim
+    BPACResp -->|"adjudication → disposition"| PResponse
+
+    style BFD fill:#fce4ec,stroke:#c62828
+    style PAS fill:#e8f5e9,stroke:#388e3c

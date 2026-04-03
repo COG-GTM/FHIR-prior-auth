@@ -1,0 +1,42 @@
+sequenceDiagram
+    participant Patient as Patient App
+    participant PatEP as PatientPriorAuthEndpoint
+    participant DB as PAS Database
+    participant BfdSvc as BfdClientService
+    participant BFD as BFD API
+    participant Transform as PasToBfdTransformer
+
+    Patient->>PatEP: GET /patient-prior-auth?patient={mbi}
+    activate PatEP
+
+    PatEP->>BfdSvc: getPatientByMbi(mbi)
+    activate BfdSvc
+    BfdSvc->>BFD: GET /Patient?identifier={mbi}
+    BFD-->>BfdSvc: Patient resource (validated identity)
+    deactivate BfdSvc
+
+    PatEP->>DB: getClaimResponsesByPatient(patientId)
+    activate DB
+    DB-->>PatEP: List of ClaimResponse records
+    deactivate DB
+
+    PatEP->>DB: getClaimsByPatient(patientId)
+    activate DB
+    DB-->>PatEP: List of Claim records
+    deactivate DB
+
+    PatEP->>BfdSvc: getCoverageByBeneficiary(beneId)
+    activate BfdSvc
+    BfdSvc->>BFD: GET /Coverage?beneficiary={beneId}
+    BFD-->>BfdSvc: Coverage details
+    deactivate BfdSvc
+
+    PatEP->>Transform: mapPasToBfdResponse(claims, responses, coverage)
+    activate Transform
+    Transform-->>PatEP: Patient-friendly PA status bundle
+    deactivate Transform
+
+    PatEP-->>Patient: 200 OK (PA Status Bundle)
+    deactivate PatEP
+
+    Note over Patient: Patient views: PA status,<br/>coverage details, disposition,<br/>preAuthRef, and timeline
