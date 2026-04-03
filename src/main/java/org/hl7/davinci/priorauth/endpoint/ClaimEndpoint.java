@@ -11,7 +11,6 @@ import javax.servlet.http.HttpServletRequest;
 
 import org.hl7.davinci.priorauth.*;
 import org.hl7.davinci.priorauth.bfd.BfdClientService;
-import org.hl7.davinci.priorauth.bfd.BfdConfiguration;
 import org.hl7.fhir.r4.model.*;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -266,7 +265,9 @@ public class ClaimEndpoint {
     String patient = FhirUtils.getPatientIdentifierFromBundle(bundle);
 
     // BFD Integration: Validate patient exists in BFD and enrich with beneficiary data
-    validateAndEnrichWithBfd(claim, patient);
+    if (patient != null) {
+      validateAndEnrichWithBfd(claim, patient);
+    }
 
     // Store provider identifier
     String[] providerRef = claim.getProvider().getReference().split("/");
@@ -574,15 +575,9 @@ public class ClaimEndpoint {
    */
   private void validateAndEnrichWithBfd(Claim claim, String patient) {
     try {
-      BfdConfiguration bfdConfig = new BfdConfiguration();
-      if (!bfdConfig.isEnabled()) {
+      BfdClientService bfdClient = App.getBfdClientService();
+      if (bfdClient == null) {
         logger.info("ClaimEndpoint::validateAndEnrichWithBfd:BFD integration not enabled");
-        return;
-      }
-
-      BfdClientService bfdClient = new BfdClientService(bfdConfig);
-      if (!bfdClient.initialize()) {
-        logger.warning("ClaimEndpoint::validateAndEnrichWithBfd:Failed to initialize BFD client");
         return;
       }
 

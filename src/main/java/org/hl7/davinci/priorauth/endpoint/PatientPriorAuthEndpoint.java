@@ -19,7 +19,6 @@ import org.hl7.davinci.priorauth.Audit.AuditEventType;
 import org.hl7.davinci.priorauth.Database.Table;
 import org.hl7.davinci.priorauth.authorization.AuthUtils;
 import org.hl7.davinci.priorauth.bfd.BfdClientService;
-import org.hl7.davinci.priorauth.bfd.BfdConfiguration;
 import org.hl7.davinci.priorauth.bfd.BfdToPasTransformer;
 import org.hl7.davinci.priorauth.endpoint.Endpoint.RequestType;
 import org.hl7.fhir.instance.model.api.IBaseResource;
@@ -184,15 +183,9 @@ public class PatientPriorAuthEndpoint {
      */
     private Patient fetchBfdPatient(String mbi) {
         try {
-            BfdConfiguration bfdConfig = new BfdConfiguration();
-            if (!bfdConfig.isEnabled()) {
+            BfdClientService bfdClient = App.getBfdClientService();
+            if (bfdClient == null) {
                 logger.info("PatientPriorAuthEndpoint::BFD integration not enabled, skipping patient enrichment");
-                return null;
-            }
-
-            BfdClientService bfdClient = new BfdClientService(bfdConfig);
-            if (!bfdClient.initialize()) {
-                logger.warning("PatientPriorAuthEndpoint::Failed to initialize BFD client");
                 return null;
             }
 

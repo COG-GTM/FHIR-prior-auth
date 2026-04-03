@@ -28,18 +28,25 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContexts;
 
+import java.io.Closeable;
+import java.io.IOException;
+
 /**
  * Service for communicating with the BFD (Beneficiary FHIR Data) API.
  * Provides methods to fetch Patient, ExplanationOfBenefit, Coverage,
  * Claim, and ClaimResponse resources from the BFD server.
+ *
+ * This class should be used as a singleton (via App.getBfdClientService())
+ * to avoid creating expensive FhirContext instances per request.
  */
-public class BfdClientService {
+public class BfdClientService implements Closeable {
 
     private static final Logger logger = PALogger.getLogger();
 
     private final BfdConfiguration configuration;
     private FhirContext bfdFhirContext;
     private IGenericClient fhirClient;
+    private CloseableHttpClient httpClient;
     private boolean initialized = false;
 
     public BfdClientService(BfdConfiguration configuration) {
@@ -79,7 +86,7 @@ public class BfdClientService {
                 SSLContext sslContext = configuration.buildSslContext();
                 if (sslContext != null) {
                     // Apply the SSLContext to the underlying Apache HttpClient
-                    CloseableHttpClient httpClient = HttpClients.custom()
+                    httpClient = HttpClients.custom()
                             .setSSLContext(sslContext)
                             .build();
                     ((RestfulClientFactory) bfdFhirContext.getRestfulClientFactory())
@@ -300,5 +307,18 @@ public class BfdClientService {
             return initialize();
         }
         return true;
+    }
+
+    @Override
+    public void close() {
+        if (httpClient != null) {
+            try {
+                httpClient.close();
+                logger.info("BfdClientService::close: Closed HTTP client");
+            } catch (IOException e) {
+                logger.log(Level.WARNING, "BfdClientService::close: Error closing HTTP client", e);
+            }
+        }
+        initialized = false;
     }
 }
