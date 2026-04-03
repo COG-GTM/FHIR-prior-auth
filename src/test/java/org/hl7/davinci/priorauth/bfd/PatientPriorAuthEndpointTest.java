@@ -38,7 +38,7 @@ import org.springframework.web.context.WebApplicationContext;
  * Validates the GET /PriorAuthorization?patient={mbi} endpoint.
  */
 @RunWith(SpringRunner.class)
-@TestPropertySource(properties = {"server.servlet.contextPath=/fhir", "BYPASS_AUTH=true"})
+@TestPropertySource(properties = {"server.servlet.contextPath=/fhir"})
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 public class PatientPriorAuthEndpointTest {
 
@@ -84,7 +84,8 @@ public class PatientPriorAuthEndpointTest {
                 .get("/PriorAuthorization?patient=test-mbi-123")
                 .header("Accept", "application/fhir+json")
                 .header("Access-Control-Request-Method", "GET")
-                .header("Origin", "http://localhost:" + port);
+                .header("Origin", "http://localhost:" + port)
+                .header("Authorization", "Bearer Y3YWq2l08kvFqy50fQJY");
 
         MvcResult mvcresult = mockMvc.perform(requestBuilder).andExpect(ok).andExpect(cors).andReturn();
 
@@ -106,7 +107,8 @@ public class PatientPriorAuthEndpointTest {
                 .get("/PriorAuthorization")
                 .header("Accept", "application/fhir+json")
                 .header("Access-Control-Request-Method", "GET")
-                .header("Origin", "http://localhost:" + port);
+                .header("Origin", "http://localhost:" + port)
+                .header("Authorization", "Bearer Y3YWq2l08kvFqy50fQJY");
 
         // Should return 400 Bad Request when patient parameter is missing
         mockMvc.perform(requestBuilder).andExpect(badRequest);
@@ -120,7 +122,8 @@ public class PatientPriorAuthEndpointTest {
                 .get("/PriorAuthorization?patient=")
                 .header("Accept", "application/fhir+json")
                 .header("Access-Control-Request-Method", "GET")
-                .header("Origin", "http://localhost:" + port);
+                .header("Origin", "http://localhost:" + port)
+                .header("Authorization", "Bearer Y3YWq2l08kvFqy50fQJY");
 
         // Should return 400 Bad Request when patient parameter is empty
         mockMvc.perform(requestBuilder).andExpect(badRequest);
@@ -134,7 +137,8 @@ public class PatientPriorAuthEndpointTest {
                 .get("/PriorAuthorization?patient=non-existent-mbi-999")
                 .header("Accept", "application/fhir+json")
                 .header("Access-Control-Request-Method", "GET")
-                .header("Origin", "http://localhost:" + port);
+                .header("Origin", "http://localhost:" + port)
+                .header("Authorization", "Bearer Y3YWq2l08kvFqy50fQJY");
 
         MvcResult mvcresult = mockMvc.perform(requestBuilder).andExpect(ok).andExpect(cors).andReturn();
 
@@ -153,7 +157,8 @@ public class PatientPriorAuthEndpointTest {
                 .get("/PriorAuthorization?patient=test-mbi-123")
                 .header("Accept", "application/fhir+xml")
                 .header("Access-Control-Request-Method", "GET")
-                .header("Origin", "http://localhost:" + port);
+                .header("Origin", "http://localhost:" + port)
+                .header("Authorization", "Bearer Y3YWq2l08kvFqy50fQJY");
 
         MvcResult mvcresult = mockMvc.perform(requestBuilder).andExpect(ok).andExpect(cors).andReturn();
 
