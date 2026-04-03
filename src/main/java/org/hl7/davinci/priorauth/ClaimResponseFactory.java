@@ -53,6 +53,41 @@ import org.hl7.fhir.r4.model.DateTimeType;
 
 public class ClaimResponseFactory {
 
+    // Cached request mapping table - loaded once at startup to avoid repeated file I/O
+    private static List<RequestMapping> cachedRequestMapping = null;
+    private static final Object cacheLock = new Object();
+
+    /**
+     * Initialize the request mapping cache by loading requestMappingTable.json.
+     * Should be called once from App.initializeAppDB().
+     */
+    public static void initializeRequestMapping() {
+        synchronized (cacheLock) {
+            if (cachedRequestMapping == null) {
+                try (InputStream in = Thread.currentThread().getContextClassLoader()
+                        .getResourceAsStream("requestMappingTable.json")) {
+                    ObjectMapper mapper = new ObjectMapper();
+                    cachedRequestMapping = mapper.readValue(in, new TypeReference<List<RequestMapping>>() {});
+                    logger.info("ClaimResponseFactory::initializeRequestMapping: Loaded "
+                            + cachedRequestMapping.size() + " request mappings");
+                } catch (Exception e) {
+                    logger.warning("ClaimResponseFactory::initializeRequestMapping: Failed to load - " + e.getMessage());
+                    cachedRequestMapping = new ArrayList<>();
+                }
+            }
+        }
+    }
+
+    /**
+     * Get the cached request mapping list. Initializes on first call if not already loaded.
+     */
+    private static List<RequestMapping> getRequestMapping() {
+        if (cachedRequestMapping == null) {
+            initializeRequestMapping();
+        }
+        return cachedRequestMapping;
+    }
+
     static final Logger logger = PALogger.getLogger();
     static final String TEMP_REQUEST_CODE = "73722";
     static final String TEMP_REQUEST_SYSTEM = "http://www.ama-assn.org/go/cpt";
@@ -149,28 +184,9 @@ public class ClaimResponseFactory {
     }
     public static boolean ItemRequiresFollowup(ItemComponent item)
     {
-
-        // TODO, this is not very effective and reloads the file every time (because it is a static function. Needs some rework
         boolean hasRequestTrigger = false;
-        List<RequestMapping> requestMapping = new ArrayList<RequestMapping>();
+        List<RequestMapping> requestMapping = getRequestMapping();
 
-    
-        //ObjectMapper objectMapper = new ObjectMapper(); 
-        // TODO: This should not have to be loaded for each call. Doing now for static functions, but needs to be fixed.
-        // This mapping has to be used for several uses beyond this function
-        //DefaultResourceLoader resourceLoader = new DefaultResourceLoader();
-
-
-        try(InputStream in=Thread.currentThread().getContextClassLoader().getResourceAsStream("requestMappingTable.json")){
-            ObjectMapper mapper = new ObjectMapper();
-            requestMapping = mapper.readValue(in, new TypeReference<List<RequestMapping>>() {});
-        }
-        catch(Exception e){
-        
-            logger.info("Exception on ItemRequiresFollowup :" + e.getMessage());
-        }
-        
-        
         for(Coding procedureCoding : item.getProductOrService().getCoding())
         {
             for(RequestMapping mapping : requestMapping)
@@ -194,17 +210,8 @@ public class ClaimResponseFactory {
     public static RequestMapping GetRequestMapping(ItemComponent item)
     {
         RequestMapping request = new RequestMapping();
-        List<RequestMapping> requestMapping = new ArrayList<RequestMapping>();
+        List<RequestMapping> requestMapping = getRequestMapping();
 
-        try(InputStream in=Thread.currentThread().getContextClassLoader().getResourceAsStream("requestMappingTable.json")){
-            ObjectMapper mapper = new ObjectMapper();
-            requestMapping = mapper.readValue(in, new TypeReference<List<RequestMapping>>() {});
-        }
-        catch(Exception e){
-        
-            logger.info("Exception on GetRequestMapping :" + e.getMessage());
-        }
-        
         for(Coding procedureCoding : item.getProductOrService().getCoding())
         {
             for(RequestMapping mapping : requestMapping)

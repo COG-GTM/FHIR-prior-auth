@@ -122,6 +122,7 @@ public class Metadata {
     metadata.addImplementationGuide("https://build.fhir.org/ig/HL7/davinci-pas/index.html");
     metadata
         .addImplementationGuide("http://wiki.hl7.org/index.php?title=Da_Vinci_Prior_Authorization_FHIR_IG_Proposal");
+    metadata.addImplementationGuide("http://hl7.org/fhir/us/carin-bb/STU2");
 
     // rest
     CapabilityStatementRestComponent rest = getRest(request);
@@ -209,10 +210,21 @@ public class Metadata {
   private CapabilityStatementRestResourceComponent getClaimResponse() {
     CapabilityStatementRestResourceComponent claimResponse = new CapabilityStatementRestResourceComponent();
     claimResponse.setType("ClaimResponse");
-    // TODO claimResponse.setSupportedProfile(theSupportedProfile);
+
+    claimResponse.addSupportedProfile(
+        "http://hl7.org/fhir/us/davinci-pas/StructureDefinition/profile-claimresponse");
+    claimResponse.addSupportedProfile(
+        "http://hl7.org/fhir/us/carin-bb/StructureDefinition/C4BB-ExplanationOfBenefit");
+
     claimResponse.addInteraction().setCode(TypeRestfulInteraction.READ);
     claimResponse.addInteraction().setCode(TypeRestfulInteraction.SEARCHTYPE);
     claimResponse.addInteraction().setCode(TypeRestfulInteraction.DELETE);
+
+    claimResponse.addSearchParam().setName("patient").setType(Enumerations.SearchParamType.TOKEN)
+        .setDefinition("http://hl7.org/fhir/SearchParameter/ClaimResponse-patient")
+        .setDocumentation(
+            "Search for prior authorization decisions by patient MBI. Endpoint: GET /PriorAuthorization?patient={mbi}");
+
     return claimResponse;
   }
 
@@ -334,6 +346,7 @@ public class Metadata {
 
     return procedure;
   }
+
 
   private CapabilityStatementRestResourceComponent getSubscriptionResponse() {
     CapabilityStatementRestResourceComponent subscriptionResponse = new CapabilityStatementRestResourceComponent();

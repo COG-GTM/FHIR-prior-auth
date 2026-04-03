@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 
 import org.hl7.davinci.priorauth.*;
+import org.hl7.davinci.priorauth.bfd.BfdClientService;
 import org.hl7.fhir.r4.model.*;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -262,7 +263,12 @@ public class ClaimEndpoint {
     // Get the patient
     Claim claim = FhirUtils.getClaimFromRequestBundle(bundle);
     String patient = FhirUtils.getPatientIdentifierFromBundle(bundle);
-    
+
+    // BFD Integration: Validate patient exists in BFD and enrich with beneficiary data
+    if (patient != null) {
+      validateAndEnrichWithBfd(claim, patient);
+    }
+
     // Store provider identifier
     String[] providerRef = claim.getProvider().getReference().split("/");
     BundleEntryComponent providerEntry = FhirUtils.getEntryComponentFromBundle(bundle, ResourceType.fromCode(providerRef[0]), providerRef[1]);
@@ -556,6 +562,45 @@ public class ClaimEndpoint {
       return true;
     }
     return false;
+  }
+
+  /**
+   * Validate the patient exists in BFD and enrich the claim with BFD beneficiary data.
+   * This is a non-blocking validation - if BFD is not configured or the patient is not found,
+   * processing continues normally. When the patient is found, the BFD beneficiary ID is added
+   * as an identifier on the claim for cross-referencing.
+   *
+   * @param claim   the Claim resource to enrich
+   * @param patient the patient identifier (MBI)
+   */
+  private void validateAndEnrichWithBfd(Claim claim, String patient) {
+    try {
+      BfdClientService bfdClient = App.getBfdClientService();
+      if (bfdClient == null) {
+        logger.info("ClaimEndpoint::validateAndEnrichWithBfd:BFD integration not enabled");
+        return;
+      }
+
+      // Validate patient exists in BFD
+      Patient bfdPatient = bfdClient.getPatientByMbi(patient);
+      if (bfdPatient != null) {
+        logger.info("ClaimEndpoint::validateAndEnrichWithBfd:Patient validated in BFD");
+
+        // Add BFD beneficiary ID as identifier on stored Claim
+        String bfdId = FhirUtils.getIdFromResource(bfdPatient);
+        if (bfdId != null) {
+          Identifier bfdIdentifier = new Identifier();
+          bfdIdentifier.setSystem("https://bluebutton.cms.gov/resources/variables/bene_id");
+          bfdIdentifier.setValue(bfdId);
+          claim.addIdentifier(bfdIdentifier);
+          logger.info("ClaimEndpoint::validateAndEnrichWithBfd:Added BFD beneficiary ID " + bfdId);
+        }
+      } else {
+        logger.info("ClaimEndpoint::validateAndEnrichWithBfd:Patient not found in BFD, continuing without enrichment");
+      }
+    } catch (Exception e) {
+      logger.log(Level.WARNING, "ClaimEndpoint::validateAndEnrichWithBfd:BFD validation failed, continuing", e);
+    }
   }
 
 }

@@ -2,6 +2,8 @@ package org.hl7.davinci.priorauth;
 
 import org.hl7.davinci.ruleutils.ModelResolver;
 import org.hl7.davinci.priorauth.authorization.AuthUtils;
+import org.hl7.davinci.priorauth.bfd.BfdClientService;
+import org.hl7.davinci.priorauth.bfd.BfdConfiguration;
 import org.hl7.davinci.rules.PriorAuthRule;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -30,6 +32,12 @@ public class App {
    */
   private static Database DB;
 
+  /**
+   * Shared BFD client service instance. Created once at startup to avoid
+   * expensive FhirContext creation per request.
+   */
+  private static BfdClientService bfdClientService;
+
   private static boolean debugMode = false;
 
   private static String baseUrl;
@@ -57,7 +65,32 @@ public class App {
       DB = new Database();
       PriorAuthRule.populateRulesTable();
       AuthUtils.populateClientTable();
+      ClaimResponseFactory.initializeRequestMapping();
+      initializeBfdClient();
     }
+  }
+
+  /**
+   * Initialize the shared BFD client service if BFD integration is enabled.
+   */
+  private static void initializeBfdClient() {
+    try {
+      BfdConfiguration bfdConfig = new BfdConfiguration();
+      if (bfdConfig.isEnabled()) {
+        bfdClientService = new BfdClientService(bfdConfig);
+        bfdClientService.initialize();
+      }
+    } catch (Exception e) {
+      // BFD integration is optional; log and continue
+      PALogger.getLogger().warning("App::initializeBfdClient: Failed to initialize BFD client: " + e.getMessage());
+    }
+  }
+
+  /**
+   * Get the shared BFD client service, or null if BFD is not enabled.
+   */
+  public static BfdClientService getBfdClientService() {
+    return bfdClientService;
   }
 
   public static Database getDB() {

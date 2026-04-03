@@ -59,21 +59,34 @@ public class Database {
   // DB_CLOSE_DELAY=-1 maintains the DB in memory after all connections closed
   // (so that we don't lose everything between a connection closing and the next
   // being opened)
-  private static final String JDBC_TYPE = "jdbc:h2:";
-  private static final String JDBC_FILE = "databaseData/database";
-  private static final String JDBC_OPTIONS = ";DB_CLOSE_DELAY=-1";
+  private static final String DEFAULT_JDBC_TYPE = "jdbc:h2:";
+  private static final String DEFAULT_JDBC_FILE = "databaseData/database";
+  private static final String DEFAULT_JDBC_OPTIONS = ";DB_CLOSE_DELAY=-1";
   private String JDBC_STRING;
+  private String dbUser;
+  private String dbPassword;
+  private String dbType;
 
   static {
     try {
       Class.forName("org.h2.Driver");
     } catch (ClassNotFoundException e) {
-      throw new Error(e);
+      logger.warning("Database::H2 driver not found, will try PostgreSQL");
+    }
+    try {
+      Class.forName("org.postgresql.Driver");
+    } catch (ClassNotFoundException e) {
+      logger.fine("Database::PostgreSQL driver not available");
     }
   }
 
   private Connection getConnection() throws SQLException {
-    Connection connection = DriverManager.getConnection(JDBC_STRING);
+    Connection connection;
+    if ("postgresql".equals(dbType)) {
+      connection = DriverManager.getConnection(JDBC_STRING, dbUser, dbPassword);
+    } else {
+      connection = DriverManager.getConnection(JDBC_STRING);
+    }
     connection.setAutoCommit(true);
     return connection;
   }
@@ -84,12 +97,42 @@ public class Database {
   }
 
   public Database(String relativePath) {
-    JDBC_STRING = JDBC_TYPE + relativePath + JDBC_FILE + JDBC_OPTIONS;
-    logger.info("JDBC: " + JDBC_STRING);
+    // Check for database configuration via environment variables
+    dbType = System.getenv("DB_TYPE");
+    String dbUrl = System.getenv("DB_URL");
+    dbUser = System.getenv("DB_USER");
+    dbPassword = System.getenv("DB_PASSWORD");
+
+    if ("postgresql".equalsIgnoreCase(dbType) && dbUrl != null && !dbUrl.isEmpty()) {
+      // PostgreSQL configuration
+      JDBC_STRING = dbUrl;
+      dbType = "postgresql";
+      if (dbUser == null) dbUser = "postgres";
+      if (dbPassword == null) dbPassword = "";
+      logger.info("Database: Using PostgreSQL: " + JDBC_STRING);
+    } else {
+      // Default H2 configuration
+      dbType = "h2";
+      JDBC_STRING = DEFAULT_JDBC_TYPE + relativePath + DEFAULT_JDBC_FILE + DEFAULT_JDBC_OPTIONS;
+      logger.info("Database: Using H2: " + JDBC_STRING);
+    }
+
     SQL_FILE = relativePath + PropertyProvider.getProperty("database_sql");
     try (Connection connection = getConnection()) {
       String sql = new String(Files.readAllBytes(Paths.get(SQL_FILE).toAbsolutePath()));
-      connection.prepareStatement(sql.replace("\"", "")).execute();
+      if ("postgresql".equals(dbType)) {
+        // Adapt H2 SQL syntax for PostgreSQL
+        sql = adaptSqlForPostgresql(sql);
+      } else {
+        sql = sql.replace("\"", "");
+      }
+      if ("postgresql".equals(dbType)) {
+        // PostgreSQL JDBC driver rejects multi-statement SQL via PreparedStatement
+        // (Extended Query protocol only supports single commands). Use Statement instead.
+        connection.createStatement().execute(sql);
+      } else {
+        connection.prepareStatement(sql).execute();
+      }
       logger.fine(sql);
 
       style = new String(Files.readAllBytes(Paths.get(relativePath + styleFile).toAbsolutePath()));
@@ -99,6 +142,64 @@ public class Database {
     } catch (IOException e) {
       logger.log(Level.SEVERE, "Database::Database:IOException", e);
     }
+  }
+
+  /**
+   * Adapt H2-specific SQL syntax for PostgreSQL compatibility.
+   * Converts H2 data types and syntax to PostgreSQL equivalents.
+   *
+   * @param sql the H2-compatible SQL
+   * @return PostgreSQL-compatible SQL
+   */
+  // PostgreSQL reserved words used as column names in the schema.
+  // These must remain quoted in DDL and DML to avoid syntax errors.
+  private static final java.util.Set<String> POSTGRES_RESERVED_COLUMNS =
+      new java.util.HashSet<>(java.util.Arrays.asList("end"));
+
+  private String adaptSqlForPostgresql(String sql) {
+    // Preserve quotes around PostgreSQL reserved words before blanket-stripping
+    for (String reserved : POSTGRES_RESERVED_COLUMNS) {
+      sql = sql.replace("\"" + reserved + "\"", "__RESERVED_" + reserved.toUpperCase() + "__");
+    }
+    sql = sql.replace("\"", "");
+    // Restore quotes around reserved words
+    for (String reserved : POSTGRES_RESERVED_COLUMNS) {
+      sql = sql.replace("__RESERVED_" + reserved.toUpperCase() + "__", "\"" + reserved + "\"");
+    }
+    // H2 CLOB/clob -> PostgreSQL TEXT
+    sql = sql.replace(" clob", " TEXT").replace(" CLOB", " TEXT");
+    // H2 IDENTITY -> PostgreSQL SERIAL
+    sql = sql.replace(" IDENTITY", " SERIAL");
+    // H2 datetime -> PostgreSQL timestamp
+    sql = sql.replace(" datetime", " timestamp");
+    // Remove H2 transaction wrappers (PostgreSQL auto-commits DDL by default)
+    sql = sql.replace("BEGIN TRANSACTION;", "");
+    sql = sql.replace("COMMIT;", "");
+    // Use CREATE TABLE IF NOT EXISTS for idempotent schema creation
+    sql = sql.replace("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ");
+    // Fix duplicate IF NOT EXISTS
+    sql = sql.replace("IF NOT EXISTS IF NOT EXISTS", "IF NOT EXISTS");
+    return sql;
+  }
+
+  /**
+   * Quote a column name if it is a PostgreSQL reserved word.
+   * For H2, column names are returned as-is.
+   */
+  private String quoteColumn(String column) {
+    if ("postgresql".equals(dbType) && POSTGRES_RESERVED_COLUMNS.contains(column.toLowerCase())) {
+      return "\"" + column + "\"";
+    }
+    return column;
+  }
+
+  /**
+   * Get the database type currently in use.
+   *
+   * @return "h2" or "postgresql"
+   */
+  public String getDbType() {
+    return dbType;
   }
 
   public String generateAndRunQuery(Table table) {
@@ -244,8 +345,14 @@ public class Database {
     IBaseResource result = null;
     if (table != null && constraintParams != null) {
       try (Connection connection = getConnection()) {
-        String sql = "SELECT TOP 1 id, patient, resource FROM " + table.value() + " WHERE "
-            + generateClause(constraintParams, WHERE_CONCAT) + " ORDER BY timestamp DESC;";
+        String sql;
+        if ("postgresql".equals(dbType)) {
+          sql = "SELECT id, patient, resource FROM " + table.value() + " WHERE "
+              + generateClause(constraintParams, WHERE_CONCAT) + " ORDER BY timestamp DESC LIMIT 1;";
+        } else {
+          sql = "SELECT TOP 1 id, patient, resource FROM " + table.value() + " WHERE "
+              + generateClause(constraintParams, WHERE_CONCAT) + " ORDER BY timestamp DESC;";
+        }
         Collection<Map<String, Object>> maps = new HashSet<Map<String, Object>>();
         maps.add(constraintParams);
         PreparedStatement stmt = generateStatement(sql, maps, connection);
@@ -344,8 +451,14 @@ public class Database {
     if (table != null && constraintParams != null && column != null) {
       try (Connection connection = getConnection()) {
         // TODO: fix this so it does not insert a string (column) into the SQL
-        String sql = "SELECT TOP 1 " + column + " FROM " + table.value() + " WHERE "
-            + generateClause(constraintParams, WHERE_CONCAT) + " ORDER BY timestamp DESC;";
+        String sql;
+        if ("postgresql".equals(dbType)) {
+          sql = "SELECT " + quoteColumn(column) + " FROM " + table.value() + " WHERE "
+              + generateClause(constraintParams, WHERE_CONCAT) + " ORDER BY timestamp DESC LIMIT 1;";
+        } else {
+          sql = "SELECT TOP 1 " + column + " FROM " + table.value() + " WHERE "
+              + generateClause(constraintParams, WHERE_CONCAT) + " ORDER BY timestamp DESC;";
+        }
         Collection<Map<String, Object>> maps = new HashSet<Map<String, Object>>();
         maps.add(constraintParams);
         PreparedStatement stmt = generateStatement(sql, maps, connection);
@@ -607,7 +720,7 @@ public class Database {
     String sqlStr = "";
     for (Iterator<String> iterator = map.keySet().iterator(); iterator.hasNext();) {
       column = iterator.next();
-      sqlStr += column + " = ?";
+      sqlStr += quoteColumn(column) + " = ?";
 
       if (iterator.hasNext())
         sqlStr += separator;
@@ -623,7 +736,9 @@ public class Database {
    * @return a string of each key concatenated by ", "
    */
   private String setColumns(Set<String> keys) {
-    Optional<String> reducedArr = Arrays.stream(keys.toArray(new String[0])).reduce((str1, str2) -> str1 + ", " + str2);
+    Optional<String> reducedArr = Arrays.stream(keys.toArray(new String[0]))
+        .map(this::quoteColumn)
+        .reduce((str1, str2) -> str1 + ", " + str2);
     return reducedArr.get();
   }
 
