@@ -88,10 +88,11 @@ public class PatientPriorAuthEndpoint {
             if (patientMbi == null || patientMbi.isEmpty()) {
                 OperationOutcome error = FhirUtils.buildOutcome(IssueSeverity.ERROR, IssueType.REQUIRED,
                         "Patient MBI is required");
-                String formattedData = FhirUtils.json(error);
+                String formattedData = FhirUtils.getFormattedData(error, requestType);
                 auditOutcome = AuditEventOutcome.MINOR_FAILURE;
+                MediaType errorContentType = requestType == RequestType.JSON ? MediaType.APPLICATION_JSON : MediaType.APPLICATION_XML;
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .contentType(MediaType.APPLICATION_JSON)
+                        .contentType(errorContentType)
                         .body(formattedData);
             }
 
@@ -172,9 +173,10 @@ public class PatientPriorAuthEndpoint {
             auditOutcome = AuditEventOutcome.SERIOUS_FAILURE;
             Audit.createAuditEvent(AuditEventType.REST, AuditEventAction.R, auditOutcome, null, request,
                     "GET /PriorAuthorization?patient=" + maskMbi(patientMbi));
+            MediaType errorContentType = requestType == RequestType.JSON ? MediaType.APPLICATION_JSON : MediaType.APPLICATION_XML;
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(FhirUtils.json(error));
+                    .contentType(errorContentType)
+                    .body(FhirUtils.getFormattedData(error, requestType));
         }
     }
 

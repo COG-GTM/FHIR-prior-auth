@@ -22,6 +22,7 @@ public class BfdConfiguration {
     private final String serverUrl;
     private final String clientCertPath;
     private final String clientKeyPath;
+    private final String clientKeyPassword;
     private final String trustStorePath;
     private final String trustStorePassword;
 
@@ -34,16 +35,19 @@ public class BfdConfiguration {
         this.clientKeyPath = getEnvOrDefault("BFD_CLIENT_KEY_PATH", "");
         this.trustStorePath = getEnvOrDefault("BFD_TRUST_STORE_PATH", "");
         this.trustStorePassword = getEnvOrDefault("BFD_TRUST_STORE_PASSWORD", "changeit");
+        // Default client key password to trust store password for backward compatibility
+        this.clientKeyPassword = getEnvOrDefault("BFD_CLIENT_KEY_PASSWORD", this.trustStorePassword);
     }
 
     /**
      * Create a BFD configuration with explicit values.
      */
     public BfdConfiguration(String serverUrl, String clientCertPath, String clientKeyPath,
-                            String trustStorePath, String trustStorePassword) {
+                            String clientKeyPassword, String trustStorePath, String trustStorePassword) {
         this.serverUrl = serverUrl;
         this.clientCertPath = clientCertPath;
         this.clientKeyPath = clientKeyPath;
+        this.clientKeyPassword = clientKeyPassword;
         this.trustStorePath = trustStorePath;
         this.trustStorePassword = trustStorePassword;
     }
@@ -58,6 +62,10 @@ public class BfdConfiguration {
 
     public String getClientKeyPath() {
         return clientKeyPath;
+    }
+
+    public String getClientKeyPassword() {
+        return clientKeyPassword;
     }
 
     public String getTrustStorePath() {
@@ -99,12 +107,12 @@ public class BfdConfiguration {
             // Load the client keystore (PKCS12 format)
             KeyStore keyStore = KeyStore.getInstance("PKCS12");
             try (FileInputStream keyStoreStream = new FileInputStream(clientCertPath)) {
-                keyStore.load(keyStoreStream, trustStorePassword.toCharArray());
+                keyStore.load(keyStoreStream, clientKeyPassword.toCharArray());
             }
 
             KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(
                     KeyManagerFactory.getDefaultAlgorithm());
-            keyManagerFactory.init(keyStore, trustStorePassword.toCharArray());
+            keyManagerFactory.init(keyStore, clientKeyPassword.toCharArray());
 
             // Load the trust store
             KeyStore trustStore = KeyStore.getInstance("JKS");
