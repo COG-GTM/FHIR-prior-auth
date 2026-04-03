@@ -1,22 +1,24 @@
-graph LR
-    subgraph BFD_Resources["BFD Resources (Source)"]
-        BPatient["Patient<br/>━━━━━━━━━━━<br/>identifier (MBI)<br/>name, birthDate<br/>gender, address"]
-        BEOB["ExplanationOfBenefit<br/>━━━━━━━━━━━<br/>8 Claim Types:<br/>Carrier, DME, HHA,<br/>Hospice, Inpatient,<br/>Outpatient, PDE, SNF"]
-        BCoverage["Coverage<br/>━━━━━━━━━━━<br/>Part A/B/C/D<br/>status, period<br/>payor, class"]
-        BPACClaim["PAC Claim<br/>━━━━━━━━━━━<br/>FISS Claims<br/>MCS Claims"]
-        BPACResp["PAC ClaimResponse<br/>━━━━━━━━━━━<br/>FISS Responses<br/>MCS Responses"]
+graph TB
+    subgraph BFD["BFD Resources (Source)"]
+        direction LR
+        BPatient["Patient / MBI"]
+        BEOB["ExplanationOfBenefit<br/>(8 Claim Types)"]
+        BCoverage["Coverage<br/>(Part A/B/C/D)"]
+        BPACClaim["PAC Claim<br/>(FISS + MCS)"]
+        BPACResp["PAC ClaimResponse"]
     end
 
-    subgraph PAS_Resources["PAS Resources (Target)"]
-        PClaim["Claim<br/>━━━━━━━━━━━<br/>.patient<br/>.item[].productOrService<br/>.insurance<br/>.provider<br/>.supportingInfo"]
-        PResponse["ClaimResponse<br/>━━━━━━━━━━━<br/>.status<br/>.disposition<br/>.preAuthRef<br/>.item[].adjudication<br/>.outcome"]
+    subgraph PAS["PAS Resources (Target)"]
+        direction LR
+        PClaim["Claim"]
+        PResponse["ClaimResponse"]
     end
 
-    BPatient -->|"MBI → patient ref<br/>demographics → supportingInfo"| PClaim
-    BEOB -->|"procedures → item.productOrService<br/>diagnosis → supportingInfo"| PClaim
-    BCoverage -->|"plan ID → insurance.coverage<br/>payor → insurance.focal"| PClaim
-    BPACClaim -->|"claim status → provider context<br/>service codes → item mapping"| PClaim
-    BPACResp -->|"adjudication → disposition<br/>status → ClaimResponse.status"| PResponse
+    BPatient -->|"MBI → patient ref"| PClaim
+    BEOB -->|"procedures → productOrService<br/>diagnosis → supportingInfo"| PClaim
+    BCoverage -->|"plan ID → insurance"| PClaim
+    BPACClaim -->|"status → provider context"| PClaim
+    BPACResp -->|"adjudication → disposition"| PResponse
 
-    style BFD_Resources fill:#fce4ec,stroke:#c62828
-    style PAS_Resources fill:#e8f5e9,stroke:#388e3c
+    style BFD fill:#fce4ec,stroke:#c62828
+    style PAS fill:#e8f5e9,stroke:#388e3c
