@@ -32,6 +32,7 @@ import org.hl7.fhir.r4.model.OperationOutcome.IssueSeverity;
 import org.hl7.fhir.r4.model.OperationOutcome.IssueType;
 import org.hl7.fhir.r4.model.Patient;
 import org.hl7.fhir.r4.model.AuditEvent.AuditEventAction;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -93,8 +94,10 @@ public class PatientPriorAuthEndpoint {
                 Audit.createAuditEvent(AuditEventType.REST, AuditEventAction.R, auditOutcome, null, request,
                         "GET /PriorAuthorization?patient=" + maskMbi(patientMbi));
                 MediaType errorContentType = requestType == RequestType.JSON ? MediaType.APPLICATION_JSON : MediaType.APPLICATION_XML;
+                String fhirErrorContentType = requestType == RequestType.JSON ? "application/fhir+json" : "application/fhir+xml";
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .contentType(errorContentType)
+                        .header(HttpHeaders.CONTENT_TYPE, fhirErrorContentType + "; charset=utf-8")
                         .body(formattedData);
             }
 
@@ -162,10 +165,12 @@ public class PatientPriorAuthEndpoint {
 
             String formattedData = FhirUtils.getFormattedData(responseBundle, requestType);
             MediaType contentType = requestType == RequestType.JSON ? MediaType.APPLICATION_JSON : MediaType.APPLICATION_XML;
+            String fhirContentType = requestType == RequestType.JSON ? "application/fhir+json" : "application/fhir+xml";
             Audit.createAuditEvent(AuditEventType.REST, AuditEventAction.R, auditOutcome, null, request,
                     "GET /PriorAuthorization?patient=" + maskMbi(patientMbi));
             return ResponseEntity.status(HttpStatus.OK)
                     .contentType(contentType)
+                    .header(HttpHeaders.CONTENT_TYPE, fhirContentType + "; charset=utf-8")
                     .body(formattedData);
 
         } catch (Exception e) {
@@ -176,8 +181,10 @@ public class PatientPriorAuthEndpoint {
             Audit.createAuditEvent(AuditEventType.REST, AuditEventAction.R, auditOutcome, null, request,
                     "GET /PriorAuthorization?patient=" + maskMbi(patientMbi));
             MediaType errorContentType = requestType == RequestType.JSON ? MediaType.APPLICATION_JSON : MediaType.APPLICATION_XML;
+            String fhirErrorContentType = requestType == RequestType.JSON ? "application/fhir+json" : "application/fhir+xml";
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .contentType(errorContentType)
+                    .header(HttpHeaders.CONTENT_TYPE, fhirErrorContentType + "; charset=utf-8")
                     .body(FhirUtils.getFormattedData(error, requestType));
         }
     }
