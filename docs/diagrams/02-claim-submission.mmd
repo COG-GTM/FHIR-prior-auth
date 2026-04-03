@@ -1,0 +1,54 @@
+sequenceDiagram
+    participant Provider as Provider EHR
+    participant ClaimEP as ClaimEndpoint
+    participant BfdSvc as BfdClientService
+    participant BFD as BFD API
+    participant Transform as BfdToPasTransformer
+    participant CQL as CQL Rules Engine
+    participant Factory as ClaimResponseFactory
+    participant DB as Database
+    participant Sub as SubscriptionEndpoint
+
+    Provider->>ClaimEP: POST /Claim/$submit (FHIR Bundle)
+    activate ClaimEP
+
+    ClaimEP->>ClaimEP: Validate Bundle structure
+
+    ClaimEP->>BfdSvc: getPatientByMbi(mbi)
+    activate BfdSvc
+    BfdSvc->>BFD: GET /Patient?identifier={mbi}
+    BFD-->>BfdSvc: Patient resource
+    deactivate BfdSvc
+
+    ClaimEP->>BfdSvc: getCoverageByBeneficiary(beneId)
+    activate BfdSvc
+    BfdSvc->>BFD: GET /Coverage?beneficiary={beneId}
+    BFD-->>BfdSvc: Coverage Bundle
+    deactivate BfdSvc
+
+    ClaimEP->>BfdSvc: getEobByPatient(beneId)
+    activate BfdSvc
+    BfdSvc->>BFD: GET /ExplanationOfBenefit?patient={beneId}
+    BFD-->>BfdSvc: EOB Bundle (claims history)
+    deactivate BfdSvc
+
+    ClaimEP->>Transform: mapBfdToPasContext(patient, coverage, eobs)
+    Transform-->>ClaimEP: PAS-compatible clinical context
+
+    ClaimEP->>CQL: evaluateRules(claim, clinicalContext)
+    activate CQL
+    CQL-->>ClaimEP: RuleResult (GRANTED / DENIED / PENDED)
+    deactivate CQL
+
+    ClaimEP->>Factory: buildClaimResponse(claim, ruleResult)
+    activate Factory
+    Factory-->>ClaimEP: ClaimResponse + preAuthRef
+    deactivate Factory
+
+    ClaimEP->>DB: persist(Bundle, Claim, ClaimResponse)
+    ClaimEP-->>Provider: 201 Created (ClaimResponse)
+    deactivate ClaimEP
+
+    Note over DB,Sub: If PENDED: async processing begins
+    DB->>Sub: UpdateClaimTask triggers notification
+    Sub->>Provider: Rest-Hook / WebSocket notification

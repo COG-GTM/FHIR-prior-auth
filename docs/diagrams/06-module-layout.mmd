@@ -1,0 +1,33 @@
+graph TB
+    subgraph root["COG-GTM/FHIR-prior-auth"]
+        subgraph bfd_pkg["bfd/ — New Integration Package"]
+            BCS["BfdClientService.java"]
+            BCfg["BfdConfiguration.java"]
+            B2P["BfdToPasTransformer.java"]
+            P2B["PasToBfdTransformer.java"]
+            BModel["BfdResourceModels.java"]
+        end
+
+        subgraph endpoint_pkg["endpoint/ — Modified + New"]
+            PatEP["PatientPriorAuthEndpoint.java ★"]
+            ClaimEPm["ClaimEndpoint.java ✎"]
+            InqEPm["ClaimInquiryEndpoint.java ✎"]
+        end
+
+        subgraph config_pkg["resources/ — Configuration"]
+            AppProp["application.properties ✎"]
+            BfdProps["bfd-config.properties ★"]
+        end
+
+        subgraph test_pkg["test/ — Test Coverage"]
+            BCSTest["BfdClientServiceTest.java"]
+            B2PTest["BfdToPasTransformerTest.java"]
+            P2BTest["PasToBfdTransformerTest.java"]
+            PatEPTest["PatientPriorAuthEndpointTest.java"]
+        end
+    end
+
+    style bfd_pkg fill:#e3f2fd,stroke:#1565c0
+    style endpoint_pkg fill:#f3e5f5,stroke:#7b1fa2
+    style config_pkg fill:#fff8e1,stroke:#f9a825
+    style test_pkg fill:#f1f8e9,stroke:#558b2f

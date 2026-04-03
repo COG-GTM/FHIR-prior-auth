@@ -1,0 +1,61 @@
+graph TB
+    subgraph External["External Systems"]
+        EHR["Provider EHR System"]
+        PatApp["Patient-Facing App<br/>(Blue Button / Third-Party)"]
+    end
+
+    subgraph Integration["Integration Layer"]
+        BfdClient["BfdClientService<br/>HTTP Client + mTLS"]
+        BfdConfig["BfdConfiguration<br/>URLs, Certs, Timeouts"]
+        BfdToPas["BfdToPasTransformer<br/>BFD → PAS Resource Mapping"]
+        PasToBfd["PasToBfdTransformer<br/>PAS → BFD Resource Mapping"]
+        PatEndpoint["PatientPriorAuthEndpoint<br/>Patient-Facing PA Status API"]
+    end
+
+    subgraph PAS["Da Vinci PAS RI"]
+        ClaimEP["ClaimEndpoint<br/>POST /Claim/$submit"]
+        InquiryEP["ClaimInquiryEndpoint<br/>POST /Claim/$inquiry"]
+        ResponseEP["ClaimResponseEndpoint<br/>GET /ClaimResponse"]
+        SubEP["SubscriptionEndpoint<br/>POST /Subscription"]
+        Meta["Metadata<br/>GET /metadata"]
+        CRFactory["ClaimResponseFactory<br/>Response Assembly"]
+        UpdateTask["UpdateClaimTask<br/>Async Pended→Final"]
+        CQL["CQL Rules Engine<br/>PriorAuthRule"]
+        DB["H2 Database<br/>Claims, Responses, Subscriptions"]
+    end
+
+    subgraph BFD["CMS BFD Server"]
+        BfdPatient["R4PatientResourceProvider<br/>Patient + MBI Lookup"]
+        BfdEOB["R4ExplanationOfBenefitResourceProvider<br/>8 Claim Types (Carrier, DME,<br/>HHA, Hospice, Inpatient,<br/>Outpatient, PDE, SNF)"]
+        BfdCoverage["R4CoverageResourceProvider<br/>Part A/B/C/D Coverage"]
+        BfdClaim["R4ClaimResourceProvider<br/>PAC Claims (FISS + MCS)"]
+        BfdClaimResp["R4ClaimResponseResourceProvider<br/>PAC ClaimResponses"]
+    end
+
+    EHR -->|"FHIR Bundle<br/>POST /Claim/$submit"| ClaimEP
+    PatApp -->|"GET /patient-prior-auth"| PatEndpoint
+
+    ClaimEP --> BfdClient
+    ClaimEP --> CQL
+    CQL --> CRFactory
+    CRFactory --> DB
+    DB --> UpdateTask
+    UpdateTask --> SubEP
+
+    PatEndpoint --> DB
+    PatEndpoint --> BfdClient
+
+    BfdClient --> BfdConfig
+    BfdClient -->|"mTLS + Bearer Token"| BfdPatient
+    BfdClient -->|"mTLS + Bearer Token"| BfdEOB
+    BfdClient -->|"mTLS + Bearer Token"| BfdCoverage
+    BfdClient -->|"mTLS + Bearer Token"| BfdClaim
+    BfdClient -->|"mTLS + Bearer Token"| BfdClaimResp
+
+    BfdToPas --> BfdClient
+    PasToBfd --> BfdClient
+
+    style External fill:#e1f5fe,stroke:#0288d1
+    style Integration fill:#fff3e0,stroke:#f57c00
+    style PAS fill:#e8f5e9,stroke:#388e3c
+    style BFD fill:#fce4ec,stroke:#c62828
