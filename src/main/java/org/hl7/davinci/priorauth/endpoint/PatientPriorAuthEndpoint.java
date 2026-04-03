@@ -90,6 +90,8 @@ public class PatientPriorAuthEndpoint {
                         "Patient MBI is required");
                 String formattedData = FhirUtils.getFormattedData(error, requestType);
                 auditOutcome = AuditEventOutcome.MINOR_FAILURE;
+                Audit.createAuditEvent(AuditEventType.REST, AuditEventAction.R, auditOutcome, null, request,
+                        "GET /PriorAuthorization?patient=" + maskMbi(patientMbi));
                 MediaType errorContentType = requestType == RequestType.JSON ? MediaType.APPLICATION_JSON : MediaType.APPLICATION_XML;
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .contentType(errorContentType)

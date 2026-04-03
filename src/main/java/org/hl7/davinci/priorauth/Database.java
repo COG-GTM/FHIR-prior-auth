@@ -453,7 +453,7 @@ public class Database {
         // TODO: fix this so it does not insert a string (column) into the SQL
         String sql;
         if ("postgresql".equals(dbType)) {
-          sql = "SELECT " + column + " FROM " + table.value() + " WHERE "
+          sql = "SELECT " + quoteColumn(column) + " FROM " + table.value() + " WHERE "
               + generateClause(constraintParams, WHERE_CONCAT) + " ORDER BY timestamp DESC LIMIT 1;";
         } else {
           sql = "SELECT TOP 1 " + column + " FROM " + table.value() + " WHERE "
