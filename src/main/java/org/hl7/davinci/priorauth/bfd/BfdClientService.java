@@ -207,9 +207,18 @@ public class BfdClientService implements Closeable {
                     .returnBundle(Bundle.class)
                     .execute();
 
-            for (Bundle.BundleEntryComponent entry : results.getEntry()) {
-                if (entry.getResource() instanceof Coverage) {
-                    coverages.add((Coverage) entry.getResource());
+            while (results != null) {
+                for (Bundle.BundleEntryComponent entry : results.getEntry()) {
+                    if (entry.getResource() instanceof Coverage) {
+                        coverages.add((Coverage) entry.getResource());
+                    }
+                }
+
+                // Follow pagination
+                if (results.getLink(Bundle.LINK_NEXT) != null) {
+                    results = fhirClient.loadPage().next(results).execute();
+                } else {
+                    results = null;
                 }
             }
 
@@ -239,9 +248,18 @@ public class BfdClientService implements Closeable {
                     .returnBundle(Bundle.class)
                     .execute();
 
-            for (Bundle.BundleEntryComponent entry : results.getEntry()) {
-                if (entry.getResource() instanceof Claim) {
-                    claims.add((Claim) entry.getResource());
+            while (results != null) {
+                for (Bundle.BundleEntryComponent entry : results.getEntry()) {
+                    if (entry.getResource() instanceof Claim) {
+                        claims.add((Claim) entry.getResource());
+                    }
+                }
+
+                // Follow pagination
+                if (results.getLink(Bundle.LINK_NEXT) != null) {
+                    results = fhirClient.loadPage().next(results).execute();
+                } else {
+                    results = null;
                 }
             }
 
@@ -271,9 +289,18 @@ public class BfdClientService implements Closeable {
                     .returnBundle(Bundle.class)
                     .execute();
 
-            for (Bundle.BundleEntryComponent entry : results.getEntry()) {
-                if (entry.getResource() instanceof ClaimResponse) {
-                    responses.add((ClaimResponse) entry.getResource());
+            while (results != null) {
+                for (Bundle.BundleEntryComponent entry : results.getEntry()) {
+                    if (entry.getResource() instanceof ClaimResponse) {
+                        responses.add((ClaimResponse) entry.getResource());
+                    }
+                }
+
+                // Follow pagination
+                if (results.getLink(Bundle.LINK_NEXT) != null) {
+                    results = fhirClient.loadPage().next(results).execute();
+                } else {
+                    results = null;
                 }
             }
 
