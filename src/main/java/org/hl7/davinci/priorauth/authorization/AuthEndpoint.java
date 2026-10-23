@@ -69,6 +69,17 @@ public class AuthEndpoint {
     @PostMapping(value = "/register", consumes = { MediaType.APPLICATION_JSON_VALUE, "application/fhir+json" })
     public ResponseEntity<String> registerClient(HttpServletRequest request, HttpEntity<String> entity) {
         App.setBaseUrl(Endpoint.getServiceBaseUrl(request));
+        if (!ClientRegistrationSecurity.isAuthorizedRegistrar(request)) {
+            String reason = ClientRegistrationSecurity.isRegistrationEnabled()
+                    ? "Client registration requires an admin registration token"
+                    : "Client registration is disabled";
+            logger.warning("AuthEndpoint::registerClient:" + reason);
+            Audit.createAuditEvent(AuditEventType.REST, AuditEventAction.C, AuditEventOutcome.MINOR_FAILURE, null,
+                    request, "POST /auth/register");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).contentType(MediaType.APPLICATION_JSON)
+                    .header("WWW-Authenticate", "Bearer")
+                    .body(JSONObject.toJSONString(Collections.singletonMap("error", reason)));
+        }
         HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
         String body = entity.getBody();
         String clientId = UUID.randomUUID().toString();
@@ -81,6 +92,15 @@ public class AuthEndpoint {
             String jwksUrl = (String) jsonObject.get("jwks_url");
             String name = (String) jsonObject.get("organization_name");
             String contact = (String) jsonObject.get("organization_contact");
+
+            if (jwksUrl != null) {
+                try {
+                    ClientRegistrationSecurity.validateJwksUrl(jwksUrl);
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).contentType(MediaType.APPLICATION_JSON)
+                            .body(JSONObject.toJSONString(Collections.singletonMap("error", e.getMessage())));
+                }
+            }
 
             if ((jwks != null || jwksUrl != null) && name != null && contact != null) {
                 status = HttpStatus.OK;
@@ -281,10 +301,12 @@ public class AuthEndpoint {
             String jwksUrl = App.getDB().readString(Table.CLIENT, Collections.singletonMap("id", clientId),
                     "jwks_url");
             if (jwksUrl == null) throw new InvalidAttributeValueException();
-            OkHttpClient client = new OkHttpClient();
-            okhttp3.Response response = client.newCall(new Request.Builder().get().url(jwksUrl).build()).execute();
-            if (response.isSuccessful()) jwks = response.body().string();
-            else throw new InvalidAttributeValueException();
+            ClientRegistrationSecurity.validateJwksUrl(jwksUrl);
+            OkHttpClient client = ClientRegistrationSecurity.jwksHttpClient();
+            try (okhttp3.Response response = client.newCall(new Request.Builder().get().url(jwksUrl).build()).execute()) {
+                if (response.isSuccessful()) jwks = response.body().string();
+                else throw new InvalidAttributeValueException();
+            }
         }
 
         // Convert to JSONObject
