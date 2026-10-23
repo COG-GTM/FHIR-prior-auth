@@ -95,6 +95,18 @@ public class AuditTest {
   }
 
   @Test
+  public void failedSearchIsAuditedAsFailure() throws Exception {
+    // Subscription search without identifier queries a non-existent column, so the SQL fails
+    String ip = uniqueIp();
+    mockMvc()
+        .perform(from(MockMvcRequestBuilders.get("/Subscription?patient.identifier=" + PATIENT_ID)
+            .header("Accept", "application/fhir+json").header("Authorization", ADMIN_TOKEN), ip))
+        .andExpect(MockMvcResultMatchers.status().isOk());
+
+    Assert.assertEquals(AuditEventOutcome.SERIOUS_FAILURE.toCode(), auditOutcomeForIp(ip));
+  }
+
+  @Test
   public void unauthorizedSubmitIsAuditedAsFailure() throws Exception {
     String ip = uniqueIp();
     mockMvc()

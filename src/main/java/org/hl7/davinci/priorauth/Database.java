@@ -191,7 +191,7 @@ public class Database {
    * 
    * @param table  - the Table to search in.
    * @param status - the status to search.
-   * @return Bundle - the search result Bundle.
+   * @return Bundle - the search result Bundle, or null if the query failed.
    */
   public Bundle search(Table table, Map<String, Object> constraintMap) {
     logger.info("Database::search(" + table.value() + ", " + constraintMap.toString() + ")");
@@ -228,7 +228,7 @@ public class Database {
     }
     Audit.createAuditEvent(AuditEventType.ACTIVITY, AuditEventAction.R, auditOutcome, null, null,
         "Search " + table.value());
-    return results;
+    return auditOutcome == AuditEventOutcome.SUCCESS ? results : null;
   }
 
   /**

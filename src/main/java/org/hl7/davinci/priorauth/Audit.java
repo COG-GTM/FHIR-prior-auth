@@ -100,7 +100,10 @@ public class Audit {
      * Get the client IP Address. The X-Forwarded-For header is client controlled,
      * so it is only honoured when the direct peer is a configured trusted proxy.
      * In that case the right-most XFF entry that is not itself a trusted proxy is
-     * used. Otherwise the servlet remote address is returned.
+     * used. Otherwise the servlet remote address is returned. Trusted proxies
+     * must append the peer address they observed to X-Forwarded-For (standard
+     * nginx/ALB behaviour); a proxy that forwards the client header verbatim
+     * cannot be trusted.
      *
      * @param request        - the servlet request
      * @param trustedProxies - IPs of trusted reverse proxies
