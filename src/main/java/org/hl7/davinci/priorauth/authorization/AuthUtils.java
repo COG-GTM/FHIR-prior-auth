@@ -27,7 +27,9 @@ public class AuthUtils {
     private static final String BYPASS_AUTH = "BYPASS_AUTH";
 
     /**
-     * Populate the Client table with default data
+     * Populate the Client table with default data. Seeded clients are re-created
+     * without an access token (revoking any token left in a persisted database) and
+     * must obtain one through /auth/token like any other client.
      */
     public static void populateClientTable() {
         // Auto register DTR RI
@@ -43,8 +45,8 @@ public class AuthUtils {
         dataMap.put("id", clientId);
         dataMap.put("jwks", "{\"keys\":[{\"ext\":true,\"kty\":\"RSA\",\"e\":\"AQAB\",\"kid\":\"3ab8b05b64d799e289e10a201786b38c\",\"key_ops\":[\"verify\"],\"alg\":\"RS384\",\"n\":\"52tcPrGJgzyGqjcUiHsbSk_PxQ7Uovz4saGxva3iyBoidsekonigJJ3LnFlHYb3vBa2NA-0GpX2E1KhNNcYWAWQFcu069zi0YZ_wWGn6PWZURuonUoKH4dGHggym3xxVUxuA8OPubGe5ji56eic4RPINg0z-TtPlS-H9dnDIVznRUTXf3fy2dqWMuTY4D2e4fXGII6OpFAsEyrOqIoR8pLWGu7AiQkothunopp9q_Gu2xqB6l8BNulsbiwsQMeRE-9SGfeFpyblHiizHDwSqeZ3iv49Ellk4yjmrf6wOaFA2IXRqL1cCLj86B6KIDrjdzOL4lOSiES-PclNpioG2rQ\"}]}");
         dataMap.put("jwks_url", null);
-        dataMap.put("token", AuthEndpoint.generateAuthToken());
         dataMap.put("organization", organization);
+        App.getDB().delete(Table.CLIENT, clientId);
         App.getDB().write(Table.CLIENT, dataMap);
 
         // Auto register Aegis Touchstone
@@ -60,8 +62,8 @@ public class AuthUtils {
         dataMap.put("id", clientId);
         dataMap.put("jwks", null);
         dataMap.put("jwks_url", "https://touchstone.aegis.net/touchstone/tsJwks?type=RS384");
-        dataMap.put("token", AuthEndpoint.generateAuthToken());
         dataMap.put("organization", organization);
+        App.getDB().delete(Table.CLIENT, clientId);
         App.getDB().write(Table.CLIENT, dataMap);
     }
 

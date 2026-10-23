@@ -86,11 +86,26 @@ public class AuthTokenTest {
   }
 
   @Test
-  public void seededClientTokenIsNotHardCoded() {
-    String seededToken = App.getDB().readString(Table.CLIENT, Collections.singletonMap("id", SEEDED_CLIENT_ID),
-        "token");
-    Assert.assertNotNull(seededToken);
-    Assert.assertNotEquals(LEGACY_ADMIN_TOKEN, seededToken);
+  public void seededClientHasNoPresetToken() {
+    AuthUtils.populateClientTable();
+    Assert.assertNull(seededToken());
+  }
+
+  @Test
+  public void reseedingRevokesLegacyTokenInPersistedDatabase() {
+    // Simulate a database persisted by an older build that seeded the literal token
+    App.getDB().update(Table.CLIENT, Collections.singletonMap("id", SEEDED_CLIENT_ID),
+        Collections.singletonMap("token", LEGACY_ADMIN_TOKEN));
+    Assert.assertEquals(LEGACY_ADMIN_TOKEN, seededToken());
+
+    AuthUtils.populateClientTable();
+
+    Assert.assertNull(seededToken());
+    Assert.assertFalse(AuthUtils.validateAccessToken(requestWithToken(LEGACY_ADMIN_TOKEN)));
+  }
+
+  private static String seededToken() {
+    return App.getDB().readString(Table.CLIENT, Collections.singletonMap("id", SEEDED_CLIENT_ID), "token");
   }
 
   @Test

@@ -233,7 +233,7 @@ public class AuthEndpoint {
      * 
      * @return authorization token
      */
-    static String generateAuthToken() {
+    private static String generateAuthToken() {
         byte[] bytes = new byte[15];
         random.nextBytes(bytes);
         return Base64.getEncoder().encodeToString(bytes);
