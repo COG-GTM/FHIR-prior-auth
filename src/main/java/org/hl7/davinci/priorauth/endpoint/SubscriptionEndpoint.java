@@ -13,7 +13,6 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -45,7 +44,6 @@ import ca.uhn.fhir.parser.IParser;
  * The Subscription endpoint to create new subscriptions or delete outdated
  * ones.
  */
-@CrossOrigin
 @RestController
 @RequestMapping("/Subscription")
 public class SubscriptionEndpoint {
@@ -90,14 +88,12 @@ public class SubscriptionEndpoint {
         return addSubscription(entity.getBody(), request, RequestType.XML);
     }
 
-    @CrossOrigin()
     @DeleteMapping(value = "", produces = { MediaType.APPLICATION_JSON_VALUE, "application/fhir+json" })
     public ResponseEntity<String> deleteSubscription(HttpServletRequest request,
             @RequestParam("identifier") String id, @RequestParam("patient.identifier") String patient) {
         return Endpoint.delete(id, patient, Table.SUBSCRIPTION, request, RequestType.JSON);
     }
 
-    @CrossOrigin()
     @DeleteMapping(value = "", produces = { MediaType.APPLICATION_XML_VALUE, "application/fhir+xml" })
     public ResponseEntity<String> deleteSubscriptionXML(HttpServletRequest request,
             @RequestParam("identifier") String id, @RequestParam("patient.identifier") String patient) {

@@ -16,13 +16,13 @@ Build, test, and start the Prior Authorization microservice:
 ./gradlew embedCdsLibrary
 ./gradlew installBootDist
 ./gradlew clean check
-./gradlew bootRun
+SPRING_PROFILES_ACTIVE=dev ./gradlew bootRun
 ```
 
 To run the microservice in debug mode (which enables debug log statements, an endpoint to view the database, and and endpoint to prefill the database with test data) use:
 
 ```
-./gradlew bootRun --args='debug'
+SPRING_PROFILES_ACTIVE=dev ./gradlew bootRun --args='debug'
 ```
 
 Access the microservice:
@@ -56,7 +56,7 @@ You can find complete end-to-end fullstack set up guides for DRLS PAS at the fol
 
 The server on the `dev` branch is always configured to run on Logicahealth. If you are running locally or on another cloud server there are a few extra configuration steps:
 
-1. This server expects to be running on HTTPS. If you are not using SSL the authorization will fail. Either follow the steps under "SSL Certificates" below to add SSL to your local version, or modify `getServiceBaseUrl()` in `Endpoint.java` to use `http`.
+1. This server runs on HTTPS by default and will not start without a keystore. Follow the steps under "SSL Certificates (TLS) and CORS" below, or use the `dev` profile (`SPRING_PROFILES_ACTIVE=dev`) for plain-HTTP local development.
 1. The default tokenUri points to LogicaHealth. Update `tokenUri` in `Metadata.java` to be the correct host.
 1. If using the MITRE DTR Reference Implementation there are is a PAS config under src/components/PriorAuth which must be updated.
 
@@ -107,24 +107,30 @@ If debug mode is enabled the following endpoints are available for use at `http:
 
 ## Authorization
 
-### SSL Certificates
+### SSL Certificates (TLS) and CORS
 
-This Reference Implementation requires certificates for SSL traffic. By default this is disabled since the hosted version on Logica Health adds its own certificated. When running on localhost you must enable https traffic. Configuration details are in `src/main/resources/application.properties`. The enable the default SSL configurations, remove the comments from the following lines:
+Transmission security (45 CFR 164.312(e)) is enforced by configuration in `src/main/resources/application.properties`:
 
-```
-server.ssl.key-store=pas_keystore.p12
-server.ssl.key-store-password=password
-server.ssl.keyStoreType=PKCS12
-server.ssl.keyAlias=pas
-```
+- **TLS is on by default.** The server will not start unless a keystore is provided through the environment. Only the `dev` Spring profile (`SPRING_PROFILES_ACTIVE=dev`, see `application-dev.properties`) serves plain HTTP, and it must never be used with PHI.
+- **CORS / WebSocket origins come from an allow-list.** `CORS_ALLOWED_ORIGINS` is a comma-separated list of exact origins applied globally to every REST endpoint and to the `/fhir/connect` WebSocket handshake. Empty (the default) means same-origin only; `*` is ignored.
 
-To create your own certificate run the following from the root directory of this project:
+| Environment variable            | Purpose                                                        | Default   |
+| ------------------------------- | -------------------------------------------------------------- | --------- |
+| `SERVER_SSL_ENABLED`            | Enable TLS (`dev` profile defaults to `false`)                 | `true`    |
+| `SERVER_SSL_KEY_STORE`          | Keystore location, e.g. `file:/run/secrets/pas_keystore.p12`   | _(none)_  |
+| `SERVER_SSL_KEY_STORE_PASSWORD` | Keystore password (inject as a secret, never commit it)        | _(none)_  |
+| `SERVER_SSL_KEY_STORE_TYPE`     | Keystore type                                                  | `PKCS12`  |
+| `SERVER_SSL_KEY_ALIAS`          | Key alias inside the keystore                                  | _(first)_ |
+| `CORS_ALLOWED_ORIGINS`          | Comma-separated CORS / WebSocket origin allow-list             | _(empty)_ |
+
+To create a self-signed certificate for local testing run the following from the root directory of this project:
 
 ```
 $ keytool -genkey -alias pas -keystore pas_keystore.p12 -keyalg RSA -storetype PKCS12
+$ SERVER_SSL_KEY_STORE=file:pas_keystore.p12 SERVER_SSL_KEY_STORE_PASSWORD=<password> ./gradlew bootRun
 ```
 
-You will be prompted to create a password for the keystore and then enter details about the certificate. Be sure to update `server.ssl.key-store-password` above with the new password you just created.
+For local development over plain HTTP use `SPRING_PROFILES_ACTIVE=dev ./gradlew bootRun`.
 
 ### Server to Server OAuth
 

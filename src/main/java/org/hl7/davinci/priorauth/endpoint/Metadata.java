@@ -10,6 +10,7 @@ import javax.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
 import org.hl7.davinci.priorauth.App;
 import org.hl7.davinci.priorauth.Audit;
+import org.hl7.davinci.priorauth.CorsConfig;
 import org.hl7.davinci.priorauth.FhirUtils;
 import org.hl7.davinci.priorauth.Audit.AuditEventOutcome;
 import org.hl7.davinci.priorauth.Audit.AuditEventType;
@@ -28,7 +29,6 @@ import org.hl7.fhir.r4.model.Enumerations.PublicationStatus;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -36,10 +36,15 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * The metadata microservice provides a CapabilityStatement.
  */
-@CrossOrigin
 @RestController
 @RequestMapping("/metadata")
 public class Metadata {
+
+  private final CorsConfig corsConfig;
+
+  public Metadata(CorsConfig corsConfig) {
+    this.corsConfig = corsConfig;
+  }
 
   /**
    * Cached CapabilityStatement.
@@ -175,7 +180,7 @@ public class Metadata {
 
   private CapabilityStatementRestSecurityComponent getSecurity(HttpServletRequest request) {
     CapabilityStatementRestSecurityComponent security = new CapabilityStatementRestSecurityComponent();
-    security.setCors(true);
+    security.setCors(corsConfig.isCorsEnabled());
     Extension oauthUris = new Extension("http://fhir-registry.smarthealthit.org/StructureDefinition/oauth-uris");
     String uriBase = request.getScheme() + "://" + request.getServerName()
                     + ("http".equals(request.getScheme()) && request.getServerPort() == 80

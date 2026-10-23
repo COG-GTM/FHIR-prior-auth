@@ -7,7 +7,6 @@ import javax.servlet.http.HttpServletRequest;
 
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,7 +18,6 @@ import org.hl7.davinci.priorauth.endpoint.Endpoint.RequestType;
 /**
  * The Bundle endpoint to READ, SEARCH for, and DELETE submitted Bundles.
  */
-@CrossOrigin
 @RestController
 @RequestMapping("/Bundle")
 public class BundleEndpoint {
@@ -44,14 +42,12 @@ public class BundleEndpoint {
     return Endpoint.read(Table.BUNDLE, constraintMap, request, RequestType.XML);
   }
 
-  @CrossOrigin
   @DeleteMapping(value = "", produces = { MediaType.APPLICATION_JSON_VALUE, "application/fhir+json" })
   public ResponseEntity<String> deleteBundle(HttpServletRequest request, @RequestParam(name = "identifier") String id,
       @RequestParam(name = "patient.identifier") String patient) {
     return Endpoint.delete(id, patient, Table.BUNDLE, request, RequestType.JSON);
   }
 
-  @CrossOrigin
   @DeleteMapping(value = "", produces = { MediaType.APPLICATION_XML_VALUE, "application/fhir+xml" })
   public ResponseEntity<String> deleteBundleXml(HttpServletRequest request,
       @RequestParam(name = "identifier") String id, @RequestParam(name = "patient.identifier") String patient) {

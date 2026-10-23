@@ -7,7 +7,6 @@ import javax.servlet.http.HttpServletRequest;
 
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,7 +20,6 @@ import org.hl7.davinci.priorauth.endpoint.Endpoint.RequestType;
  * The ClaimResponse endpoint to READ, SEARCH for, and DELETE ClaimResponses to
  * submitted claims.
  */
-@CrossOrigin
 @RestController
 @RequestMapping("/ClaimResponse")
 public class ClaimResponseEndpoint {
@@ -70,14 +68,12 @@ public class ClaimResponseEndpoint {
     return Endpoint.read(Table.CLAIM_RESPONSE, constraintMap, request, requestType);
   }
 
-  @CrossOrigin
   @DeleteMapping(value = "", produces = { MediaType.APPLICATION_JSON_VALUE, "application/fhir+json" })
   public ResponseEntity<String> deleteClaimResponse(HttpServletRequest request,
       @RequestParam(name = "identifier") String id, @RequestParam(name = "patient.identifier") String patient) {
     return Endpoint.delete(id, patient, Table.CLAIM_RESPONSE, request, RequestType.JSON);
   }
 
-  @CrossOrigin
   @DeleteMapping(value = "", produces = { MediaType.APPLICATION_XML_VALUE, "application/fhir+xml" })
   public ResponseEntity<String> deleteClaimResponseXml(HttpServletRequest request,
       @RequestParam(name = "identifier") String id, @RequestParam(name = "patient.identifier") String patient) {

@@ -30,7 +30,6 @@ import org.hl7.fhir.r4.model.Claim;
 import org.hl7.fhir.r4.model.ClaimResponse;
 import org.hl7.fhir.r4.model.AuditEvent.AuditEventAction;
 
-@CrossOrigin
 @RestController
 @RequestMapping("/debug")
 public class DebugEndpoint {
