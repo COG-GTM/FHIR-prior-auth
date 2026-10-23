@@ -24,12 +24,18 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     static final Logger logger = PALogger.getLogger();
 
+    private final CorsConfig corsConfig;
+
+    public WebSocketConfig(CorsConfig corsConfig) {
+        this.corsConfig = corsConfig;
+    }
+
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint(ENDPOINT_CONNECT, SubscribeController.ENDPOINT_SUBSCRIBE)
                 // assign a random username as principal for each websocket client
                 // this is needed to be able to communicate with a specific client
-                .setHandshakeHandler(new AssignPrincipalHandshakeHandler()).setAllowedOrigins("*");
+                .setHandshakeHandler(new AssignPrincipalHandshakeHandler()).setAllowedOrigins(corsConfig.getAllowedOrigins());
     }
 
     @Override

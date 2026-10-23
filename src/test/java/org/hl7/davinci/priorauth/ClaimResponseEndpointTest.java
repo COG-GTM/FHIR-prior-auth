@@ -44,7 +44,8 @@ public class ClaimResponseEndpointTest {
   @Autowired
   private WebApplicationContext wac;
 
-  private static ResultMatcher cors = MockMvcResultMatchers.header().string("Access-Control-Allow-Origin", "*");
+  // CORS allow-list is empty by default, so cross-origin callers get no ACAO header (EM-162).
+  private static ResultMatcher cors = MockMvcResultMatchers.header().doesNotExist("Access-Control-Allow-Origin");
   private static ResultMatcher ok = MockMvcResultMatchers.status().isOk();
   private static ResultMatcher notFound = MockMvcResultMatchers.status().isNotFound();
 

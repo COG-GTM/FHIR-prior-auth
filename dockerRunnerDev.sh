@@ -4,6 +4,7 @@
 trap 'kill $CONTINUOUS_BUILD_PID $SERVER_PID; gradle --stop; exit' INT
 
 export TOKEN_BASE_URI=http://localhost:9015
+export SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-dev}
 
 mkdir logs 
 # Reset log file content for new application boot
