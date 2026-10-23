@@ -82,7 +82,11 @@ public final class ClientRegistrationSecurity {
         HttpUrl url = HttpUrl.parse(jwksUrl.trim());
         if (url == null) throw new IllegalArgumentException("jwks_url is not a valid http(s) URL");
         if (!url.isHttps()) throw new IllegalArgumentException("jwks_url must use https");
-        if (!url.username().isEmpty() || !url.password().isEmpty())
+        String raw = jwksUrl.trim();
+        int authorityStart = raw.indexOf("://") + 3;
+        int authorityEnd = raw.indexOf('/', authorityStart);
+        String authority = raw.substring(authorityStart, authorityEnd < 0 ? raw.length() : authorityEnd);
+        if (!url.username().isEmpty() || !url.password().isEmpty() || authority.contains("@"))
             throw new IllegalArgumentException("jwks_url must not contain user info");
 
         try {
@@ -131,9 +135,11 @@ public final class ClientRegistrationSecurity {
         int first = b[0] & 0xFF;
         int second = b[1] & 0xFF;
         int third = b[2] & 0xFF;
+        int fourth = b[3] & 0xFF;
         return first == 0 // 0.0.0.0/8 "this network"
                 || (first == 100 && second >= 64 && second <= 127) // 100.64.0.0/10 carrier-grade NAT
-                || (first == 192 && second == 0 && (third == 0 || third == 2)) // 192.0.0.0/24, 192.0.2.0/24
+                || (first == 192 && second == 0 && third == 0 && fourth != 9 && fourth != 10) // 192.0.0.0/24 except anycast .9/.10
+                || (first == 192 && second == 0 && third == 2) // 192.0.2.0/24
                 || (first == 198 && (second == 18 || second == 19)) // 198.18.0.0/15 benchmarking
                 || (first == 198 && second == 51 && third == 100) // 198.51.100.0/24 documentation
                 || (first == 203 && second == 0 && third == 113) // 203.0.113.0/24 documentation
