@@ -1,7 +1,10 @@
 package org.hl7.davinci.priorauth;
 
 import org.hl7.davinci.priorauth.Database.Table;
+import org.hl7.davinci.priorauth.authorization.AuthUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -10,6 +13,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+
+import javax.servlet.http.HttpServletRequest;
 
 import java.security.Principal;
 import java.util.Collections;
@@ -60,11 +65,17 @@ public class SubscribeController {
     }
 
     @PostMapping("/notify/{subscriptionId}")
-    public void handleNotification(@PathVariable String subscriptionId, @RequestBody String message) {
+    public ResponseEntity<Void> handleNotification(HttpServletRequest request, @PathVariable String subscriptionId,
+            @RequestBody String message) {
+        if (!AuthUtils.validateAccessToken(request)) {
+            logger.warning("SubscribeController::Unauthorized notification attempt for subscriptionId " + subscriptionId);
+            return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+        }
         // Find all users subscribed to this subscriptionId and send them a message
         String destination = WebSocketConfig.SUBSCRIBE_USER_NOTIFICATION + "/" + subscriptionId;
         messagingTemplate.convertAndSend(destination, message);
         logger.info("SubscribeController::Notification sent to subscriptionId " + subscriptionId);
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
     public static void sendMessageToUser(String username, String channel, String msg) {

@@ -27,6 +27,7 @@ import org.hl7.davinci.priorauth.PALogger;
 import org.hl7.davinci.priorauth.Audit.AuditEventOutcome;
 import org.hl7.davinci.priorauth.Audit.AuditEventType;
 import org.hl7.davinci.priorauth.Database.Table;
+import org.hl7.davinci.priorauth.authorization.AuthUtils;
 import org.hl7.davinci.priorauth.endpoint.Endpoint.RequestType;
 import org.hl7.fhir.instance.model.api.IBaseResource;
 import org.hl7.fhir.r4.model.OperationOutcome;
@@ -106,6 +107,12 @@ public class SubscriptionEndpoint {
 
     private ResponseEntity<String> addSubscription(String body, HttpServletRequest request, RequestType requestType) {
         logger.info("POST /Subscription fhir+" + requestType.name());
+
+        if (!AuthUtils.validateAccessToken(request)) {
+            Audit.createAuditEvent(AuditEventType.REST, AuditEventAction.C, AuditEventOutcome.MINOR_FAILURE, null, request,
+                    "Attempted to subscribe but is unauthorized");
+            return Endpoint.unauthorized(requestType);
+        }
 
         HttpStatus status = HttpStatus.CREATED;
         String formattedData = null;

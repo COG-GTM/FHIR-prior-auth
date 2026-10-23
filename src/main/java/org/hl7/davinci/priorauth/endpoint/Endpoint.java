@@ -14,6 +14,7 @@ import org.hl7.davinci.priorauth.PALogger;
 import org.hl7.davinci.priorauth.Audit.AuditEventOutcome;
 import org.hl7.davinci.priorauth.Audit.AuditEventType;
 import org.hl7.davinci.priorauth.Database.Table;
+import org.hl7.davinci.priorauth.authorization.AuthUtils;
 import org.hl7.fhir.instance.model.api.IBaseResource;
 import org.hl7.fhir.r4.model.Bundle;
 import org.hl7.fhir.r4.model.Claim;
@@ -38,6 +39,7 @@ public class Endpoint {
     static String REQUIRES_PATIENT = "Patient Identifier is required: DELETE {resourceType}?patient.identifier=";
     static String DELETED_MSG = "Deleted resource and all related and referenced resources.";
     static String SQL_ERROR = "Unable to perform operation. SQL error while processing. Check logs for more details.";
+    static String UNAUTHORIZED_MSG = "Invalid access token. Make sure to use Authorization: Bearer (token)";
 
     /**
      * Read a resource from an endpoint in either JSON or XML
@@ -117,6 +119,11 @@ public class Endpoint {
         OperationOutcome outcome = null;
         AuditEventOutcome auditOutcome = AuditEventOutcome.MINOR_FAILURE;
         String referenceUrl = table.value() + "/" + id;
+        if (!AuthUtils.validateAccessToken(request)) {
+            Audit.createAuditEvent(AuditEventType.REST, AuditEventAction.D, AuditEventOutcome.MINOR_FAILURE, referenceUrl,
+                    request, "Attempted to delete " + referenceUrl + " but is unauthorized");
+            return unauthorized(requestType);
+        }
         if (id == null) {
             // Do not delete everything
             // ID is required...
@@ -141,6 +148,18 @@ public class Endpoint {
 
         String formattedData = FhirUtils.getFormattedData(outcome, requestType);
         return new ResponseEntity<>(formattedData, status);
+    }
+
+    /**
+     * Build a 401 response with an OperationOutcome explaining the missing or
+     * invalid bearer token
+     * 
+     * @param requestType - the RequestType of the request.
+     * @return 401 Unauthorized response
+     */
+    public static ResponseEntity<String> unauthorized(RequestType requestType) {
+        OperationOutcome outcome = FhirUtils.buildOutcome(IssueSeverity.ERROR, IssueType.SECURITY, UNAUTHORIZED_MSG);
+        return new ResponseEntity<>(FhirUtils.getFormattedData(outcome, requestType), HttpStatus.UNAUTHORIZED);
     }
 
     /**
