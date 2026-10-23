@@ -212,8 +212,7 @@ public class AuthEndpoint {
         final String authToken = generateAuthToken();
 
         if (clientId != null)
-            App.getDB().update(Table.CLIENT, Collections.singletonMap("id", clientId),
-                    Collections.singletonMap("token", authToken));
+            AuthUtils.storeAccessToken(clientId, authToken);
 
         Audit.createAuditEvent(AuditEventType.REST, AuditEventAction.E, AuditEventOutcome.SUCCESS, null, request, "POST /token" + requestQueryParams);
 

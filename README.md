@@ -19,6 +19,19 @@ Build, test, and start the Prior Authorization microservice:
 ./gradlew bootRun
 ```
 
+### Database encryption at rest
+
+The H2 database (`databaseData/database.mv.db`) is opened with `CIPHER=AES`. The file encryption password is read from the `PRIOR_AUTH_DB_FILE_PASSWORD` environment variable and the service will not start without it. Supply it from a secret store (e.g. a Docker/Kubernetes secret or an untracked `.env` file, which is git-ignored); never commit it. The value must not contain whitespace. For example:
+
+```
+export PRIOR_AUTH_DB_FILE_PASSWORD="$(openssl rand -hex 32)"   # store this value securely; it is required to reopen the database
+./gradlew bootRun
+```
+
+`docker-compose.yml`, `docker-compose-dev.yml` and `docker-compose-porter.yml` pass `PRIOR_AUTH_DB_FILE_PASSWORD` through from the environment and refuse to start if it is unset (for Porter, supply it as the sensitive `prior_auth_db_file_password` parameter). Startup also fails if the database cannot be opened with the supplied password. The optional `PRIOR_AUTH_DB_FILE` variable overrides the database location (absolute, or relative to the working directory). An existing unencrypted `databaseData/database.mv.db` cannot be opened once encryption is enabled; delete it (or export/re-import it with the H2 `Script`/`RunScript` tools) before upgrading. Losing the password means losing the data. `./gradlew test` uses a random per-build password and an isolated database under `build/test-db`.
+
+OAuth access tokens are stored in the `Client` table only as SHA-256 hashes and are validated by hashing the presented bearer token, so a copy of the database does not reveal usable tokens.
+
 To run the microservice in debug mode (which enables debug log statements, an endpoint to view the database, and and endpoint to prefill the database with test data) use:
 
 ```

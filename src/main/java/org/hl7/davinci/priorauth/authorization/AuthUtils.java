@@ -1,10 +1,14 @@
 package org.hl7.davinci.priorauth.authorization;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -44,7 +48,7 @@ public class AuthUtils {
         dataMap.put("id", clientId);
         dataMap.put("jwks", "{\"keys\":[{\"ext\":true,\"kty\":\"RSA\",\"e\":\"AQAB\",\"kid\":\"3ab8b05b64d799e289e10a201786b38c\",\"key_ops\":[\"verify\"],\"alg\":\"RS384\",\"n\":\"52tcPrGJgzyGqjcUiHsbSk_PxQ7Uovz4saGxva3iyBoidsekonigJJ3LnFlHYb3vBa2NA-0GpX2E1KhNNcYWAWQFcu069zi0YZ_wWGn6PWZURuonUoKH4dGHggym3xxVUxuA8OPubGe5ji56eic4RPINg0z-TtPlS-H9dnDIVznRUTXf3fy2dqWMuTY4D2e4fXGII6OpFAsEyrOqIoR8pLWGu7AiQkothunopp9q_Gu2xqB6l8BNulsbiwsQMeRE-9SGfeFpyblHiizHDwSqeZ3iv49Ellk4yjmrf6wOaFA2IXRqL1cCLj86B6KIDrjdzOL4lOSiES-PclNpioG2rQ\"}]}");
         dataMap.put("jwks_url", null);
-        dataMap.put("token", "Y3YWq2l08kvFqy50fQJY");
+        dataMap.put("token", hashToken("Y3YWq2l08kvFqy50fQJY"));
         dataMap.put("organization", organization);
         App.getDB().write(Table.CLIENT, dataMap);
 
@@ -61,7 +65,7 @@ public class AuthUtils {
         dataMap.put("id", clientId);
         dataMap.put("jwks", null);
         dataMap.put("jwks_url", "https://touchstone.aegis.net/touchstone/tsJwks?type=RS384");
-        dataMap.put("token", "Y3YWq2l08kvFqy50fQJY");
+        dataMap.put("token", hashToken("Y3YWq2l08kvFqy50fQJY"));
         dataMap.put("organization", organization);
         App.getDB().write(Table.CLIENT, dataMap);
     }
@@ -90,7 +94,7 @@ public class AuthUtils {
             return true;
         }
 
-        String timestamp = App.getDB().readString(Table.CLIENT, Collections.singletonMap("token", accessToken), "timestamp");
+        String timestamp = App.getDB().readString(Table.CLIENT, Collections.singletonMap("token", hashToken(accessToken)), "timestamp");
         if (timestamp == null) return false;
 
         // Validate token age
@@ -127,8 +131,36 @@ public class AuthUtils {
 
         if (accessToken.equals(ADMIN_TOKEN)) return "Admin";
 
-        String clientId = App.getDB().readString(Table.CLIENT, Collections.singletonMap("token", accessToken), "id");
+        String clientId = App.getDB().readString(Table.CLIENT, Collections.singletonMap("token", hashToken(accessToken)), "id");
         return clientId == null ? "Unknown Client: Invalid Access Token" : clientId;
+    }
+
+    /**
+     * Store the SHA-256 hash of a newly issued access token for a client. The
+     * plaintext token is never persisted.
+     *
+     * @param clientId    id of the client the token was issued to
+     * @param accessToken plaintext access token returned to the client
+     * @return true if the Client row was updated
+     */
+    public static boolean storeAccessToken(String clientId, String accessToken) {
+        return App.getDB().update(Table.CLIENT, Collections.singletonMap("id", clientId),
+                Collections.singletonMap("token", hashToken(accessToken)));
+    }
+
+    /**
+     * Hash an access token for storage and lookup in the Client table
+     *
+     * @param accessToken plaintext access token
+     * @return lowercase hex SHA-256 digest of the token
+     */
+    public static String hashToken(String accessToken) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(accessToken.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 not available", e);
+        }
     }
 
     /**

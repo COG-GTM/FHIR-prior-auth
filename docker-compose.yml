@@ -64,6 +64,7 @@ services:
     container_name: pas_prod_prior-auth
     environment:
       - TOKEN_BASE_URI=http://localhost:9015
+      - PRIOR_AUTH_DB_FILE_PASSWORD=${PRIOR_AUTH_DB_FILE_PASSWORD:?Set PRIOR_AUTH_DB_FILE_PASSWORD (see README Database encryption at rest)}
     ports: # Port binding to host from docker container
       - "9015:9015" # Bind port 3000 of host to 3000 of container
     volumes:

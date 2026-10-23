@@ -146,6 +146,15 @@ void checkoutCdsLibraryScript(branch) {
 }
 
 
+test {
+    // Tests use an isolated, throwaway encrypted database with a random per-build key.
+    // Real deployments must supply PRIOR_AUTH_DB_FILE_PASSWORD from a secret store.
+    def testDbDir = file('build/test-db')
+    environment 'PRIOR_AUTH_DB_FILE', 'build/test-db/database'
+    environment 'PRIOR_AUTH_DB_FILE_PASSWORD', UUID.randomUUID().toString().replace('-', '')
+    doFirst { delete testDbDir }
+}
+
 jacocoTestReport {
   reports {
     xml.required = true
