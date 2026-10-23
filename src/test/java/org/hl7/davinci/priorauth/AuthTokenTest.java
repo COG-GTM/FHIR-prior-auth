@@ -9,6 +9,7 @@ import javax.servlet.http.HttpServletRequest;
 
 import org.hl7.davinci.priorauth.Database.Table;
 import org.hl7.davinci.priorauth.authorization.AuthUtils;
+import org.hl7.fhir.r4.model.Bundle;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -21,6 +22,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
@@ -115,6 +117,18 @@ public class AuthTokenTest {
     Assert.assertNotEquals(LEGACY_ADMIN_TOKEN, accessToken);
     Assert.assertTrue(AuthUtils.validateAccessToken(requestWithToken(accessToken)));
 
-    mockMvc.perform(submit(accessToken)).andExpect(MockMvcResultMatchers.status().isCreated());
+    String clientId = AuthUtils.getClientId(requestWithToken(accessToken));
+    try {
+      MvcResult result = mockMvc.perform(submit(accessToken)).andExpect(MockMvcResultMatchers.status().isCreated())
+          .andReturn();
+      Bundle response = (Bundle) App.getFhirContext().newJsonParser()
+          .parseResource(result.getResponse().getContentAsString());
+      String id = FhirUtils.getIdFromResource(response);
+      App.getDB().delete(Table.BUNDLE, id, "pat013");
+      App.getDB().delete(Table.CLAIM, id, "pat013");
+      App.getDB().delete(Table.CLAIM_RESPONSE, id, "pat013");
+    } finally {
+      App.getDB().delete(Table.CLIENT, clientId);
+    }
   }
 }
