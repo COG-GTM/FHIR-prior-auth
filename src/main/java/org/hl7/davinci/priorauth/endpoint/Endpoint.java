@@ -61,14 +61,21 @@ public class Endpoint {
         }
         String formattedData = null;
         String description = "Read " + referenceUrl;
+        AuditEventOutcome auditOutcome = AuditEventOutcome.SUCCESS;
         if ((!constraintMap.containsKey("id") || constraintMap.get("id") == null)
                 && (!constraintMap.containsKey("claimId") || constraintMap.get("claimId") == null)) {
             // Search
             constraintMap.remove("id");
             Bundle searchBundle;
             searchBundle = App.getDB().search(table, constraintMap);
-            formattedData = FhirUtils.getFormattedData(searchBundle, requestType);
             description = "Searched for " + referenceUrl;
+            if (searchBundle == null) {
+                // Preserve the existing empty-searchset response, but audit the failed query
+                auditOutcome = AuditEventOutcome.SERIOUS_FAILURE;
+                description = "Search for " + referenceUrl + " failed";
+                searchBundle = new Bundle().setType(Bundle.BundleType.SEARCHSET).setTotal(0);
+            }
+            formattedData = FhirUtils.getFormattedData(searchBundle, requestType);
         } else {
             // Read
             IBaseResource baseResource;
@@ -96,7 +103,7 @@ public class Endpoint {
             }
         }
 
-        Audit.createAuditEvent(AuditEventType.QUERY, AuditEventAction.R, AuditEventOutcome.MINOR_FAILURE, referenceUrl, request,
+        Audit.createAuditEvent(AuditEventType.QUERY, AuditEventAction.R, auditOutcome, referenceUrl, request,
                 description);
         return new ResponseEntity<>(formattedData, HttpStatus.OK);
     }

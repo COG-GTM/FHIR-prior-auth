@@ -1,9 +1,13 @@
 package org.hl7.davinci.priorauth;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -77,20 +81,48 @@ public class Audit {
 
     }
 
+    /** Comma-separated IPs of reverse proxies whose X-Forwarded-For header is trusted. */
+    static final String TRUSTED_PROXIES = "TRUSTED_PROXIES";
+
+    private static Set<String> getTrustedProxies() {
+        String value = System.getProperty(TRUSTED_PROXIES, System.getenv(TRUSTED_PROXIES));
+        if (value == null || value.isBlank())
+            return Collections.emptySet();
+        return Arrays.stream(value.split(",")).map(String::trim).filter(ip -> !ip.isEmpty())
+                .collect(Collectors.toSet());
+    }
+
+    private static String getIPAddress(HttpServletRequest request) {
+        return getIPAddress(request, getTrustedProxies());
+    }
+
     /**
-     * Get the client IP Address via the XFF header or Servlet Remote Address. Note
-     * this is susceptible to IP spoofing but is the only way to get the IP.
-     * 
-     * @param request - the servlet request
+     * Get the client IP Address. The X-Forwarded-For header is client controlled,
+     * so it is only honoured when the direct peer is a configured trusted proxy.
+     * In that case the right-most XFF entry that is not itself a trusted proxy is
+     * used. Otherwise the servlet remote address is returned. Trusted proxies
+     * must append the peer address they observed to X-Forwarded-For (standard
+     * nginx/ALB behaviour); a proxy that forwards the client header verbatim
+     * cannot be trusted.
+     *
+     * @param request        - the servlet request
+     * @param trustedProxies - IPs of trusted reverse proxies
      * @return the IP Address
      */
-    private static String getIPAddress(HttpServletRequest request) {
+    static String getIPAddress(HttpServletRequest request, Set<String> trustedProxies) {
         if (request == null)
             return null;
+        String remoteAddr = request.getRemoteAddr();
         String xffHeader = request.getHeader("X-Forwarded-For");
-        if (xffHeader != null)
-            return xffHeader;
-        return request.getRemoteAddr();
+        if (xffHeader == null || remoteAddr == null || !trustedProxies.contains(remoteAddr))
+            return remoteAddr;
+        String[] hops = xffHeader.split(",");
+        for (int i = hops.length - 1; i >= 0; i--) {
+            String hop = hops[i].trim();
+            if (!hop.isEmpty() && !trustedProxies.contains(hop))
+                return hop;
+        }
+        return remoteAddr;
     }
 
     private static AuditEventSourceComponent createSourceComponent() {
