@@ -2,8 +2,6 @@ package org.hl7.davinci.priorauth.authorization;
 
 import java.net.Inet6Address;
 import java.net.InetAddress;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -14,6 +12,7 @@ import java.util.concurrent.TimeUnit;
 import javax.servlet.http.HttpServletRequest;
 
 import okhttp3.Dns;
+import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 
 /**
@@ -80,23 +79,14 @@ public final class ClientRegistrationSecurity {
     public static void validateJwksUrl(String jwksUrl) {
         if (jwksUrl == null || jwksUrl.isBlank()) throw new IllegalArgumentException("jwks_url is empty");
 
-        URI uri;
-        try {
-            uri = new URI(jwksUrl.trim());
-        } catch (URISyntaxException e) {
-            throw new IllegalArgumentException("jwks_url is not a valid URL");
-        }
-
-        if (!"https".equalsIgnoreCase(uri.getScheme()))
-            throw new IllegalArgumentException("jwks_url must use https");
-        if (uri.getUserInfo() != null)
+        HttpUrl url = HttpUrl.parse(jwksUrl.trim());
+        if (url == null) throw new IllegalArgumentException("jwks_url is not a valid http(s) URL");
+        if (!url.isHttps()) throw new IllegalArgumentException("jwks_url must use https");
+        if (!url.username().isEmpty() || !url.password().isEmpty())
             throw new IllegalArgumentException("jwks_url must not contain user info");
 
-        String host = uri.getHost();
-        if (host == null || host.isEmpty()) throw new IllegalArgumentException("jwks_url must include a host");
-
         try {
-            PUBLIC_ONLY_DNS.lookup(stripBrackets(host));
+            PUBLIC_ONLY_DNS.lookup(url.host());
         } catch (UnknownHostException e) {
             throw new IllegalArgumentException("jwks_url host is not resolvable to a public address");
         }
@@ -123,10 +113,12 @@ public final class ClientRegistrationSecurity {
         if (address instanceof Inet6Address) {
             // fc00::/7 unique local
             if ((b[0] & 0xFE) == 0xFC) return true;
-            // IPv4-compatible / IPv4-mapped forms that Java did not already unwrap
+            // IPv4-compatible / IPv4-mapped forms that Java did not already unwrap, and NAT64 64:ff9b::/96
             boolean leadingZeros = true;
             for (int i = 0; i < 10; i++) leadingZeros &= b[i] == 0;
-            if (leadingZeros && ((b[10] == 0 && b[11] == 0) || (b[10] == (byte) 0xFF && b[11] == (byte) 0xFF))) {
+            boolean nat64 = b[0] == 0 && b[1] == 0x64 && b[2] == (byte) 0xFF && b[3] == (byte) 0x9B;
+            for (int i = 4; i < 12 && nat64; i++) nat64 = b[i] == 0;
+            if (nat64 || (leadingZeros && ((b[10] == 0 && b[11] == 0) || (b[10] == (byte) 0xFF && b[11] == (byte) 0xFF)))) {
                 try {
                     return isDisallowedAddress(InetAddress.getByAddress(Arrays.copyOfRange(b, 12, 16)));
                 } catch (UnknownHostException e) {
@@ -138,11 +130,13 @@ public final class ClientRegistrationSecurity {
 
         int first = b[0] & 0xFF;
         int second = b[1] & 0xFF;
-        // 0.0.0.0/8 "this network" and 100.64.0.0/10 carrier-grade NAT
-        return first == 0 || (first == 100 && second >= 64 && second <= 127);
-    }
-
-    private static String stripBrackets(String host) {
-        return host.startsWith("[") && host.endsWith("]") ? host.substring(1, host.length() - 1) : host;
+        int third = b[2] & 0xFF;
+        return first == 0 // 0.0.0.0/8 "this network"
+                || (first == 100 && second >= 64 && second <= 127) // 100.64.0.0/10 carrier-grade NAT
+                || (first == 192 && second == 0 && (third == 0 || third == 2)) // 192.0.0.0/24, 192.0.2.0/24
+                || (first == 198 && (second == 18 || second == 19)) // 198.18.0.0/15 benchmarking
+                || (first == 198 && second == 51 && third == 100) // 198.51.100.0/24 documentation
+                || (first == 203 && second == 0 && third == 113) // 203.0.113.0/24 documentation
+                || first >= 240; // 240.0.0.0/4 reserved, broadcast
     }
 }
