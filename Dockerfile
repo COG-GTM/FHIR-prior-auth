@@ -17,5 +17,6 @@ RUN ./gradlew embedCdsLibrary
 
 # Expose port to access the app
 EXPOSE 9015
-# Command to run our app
-CMD ["./gradlew", "bootRun", "-Pdebug"]
+# Command to run our app. Never pass -Pdebug here: it starts a JDWP remote debugger.
+# Debugging is only available via docker-compose-dev.yml (Dockerfile.dev).
+CMD ["./gradlew", "bootRun"]
