@@ -49,6 +49,9 @@ public class SubscriptionEndpointTest {
     @Autowired
     private WebApplicationContext wac;
 
+    private static final String ADMIN_TOKEN = "Y3YWq2l08kvFqy50fQJY";
+
+    private static ResultMatcher unauthorized = MockMvcResultMatchers.status().isUnauthorized();
     private static ResultMatcher cors = MockMvcResultMatchers.header().string("Access-Control-Allow-Origin", "*");
     private static ResultMatcher ok = MockMvcResultMatchers.status().isOk();
     private static ResultMatcher badRequest = MockMvcResultMatchers.status().isBadRequest();
@@ -138,7 +141,8 @@ public class SubscriptionEndpointTest {
         MockMvc mockMvc = builder.build();
         MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.post("/Subscription")
                 .content(subscriptionPended).header("Content-Type", "application/fhir+json")
-                .header("Access-Control-Request-Method", "POST").header("Origin", "http://localhost:" + port);
+                .header("Access-Control-Request-Method", "POST").header("Origin", "http://localhost:" + port)
+                .header("Authorization", "Bearer " + ADMIN_TOKEN);
 
         // Test the response has CORS headers and returned status 200
         MvcResult mvcresult = mockMvc.perform(requestBuilder).andExpect(ok).andExpect(cors).andReturn();
@@ -171,7 +175,8 @@ public class SubscriptionEndpointTest {
         MockMvc mockMvc = builder.build();
         MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.post("/Subscription")
                 .content(subscriptionGranted).header("Content-Type", "application/fhir+json")
-                .header("Access-Control-Request-Method", "POST").header("Origin", "http://localhost:" + port);
+                .header("Access-Control-Request-Method", "POST").header("Origin", "http://localhost:" + port)
+                .header("Authorization", "Bearer " + ADMIN_TOKEN);
 
         // Test the response has CORS headers and returned status 400
         MvcResult mvcresult = mockMvc.perform(requestBuilder).andExpect(badRequest).andExpect(cors).andReturn();
@@ -194,7 +199,8 @@ public class SubscriptionEndpointTest {
         MockMvc mockMvc = builder.build();
         MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.post("/Subscription").content(claim)
                 .header("Content-Type", "application/fhir+json").header("Access-Control-Request-Method", "POST")
-                .header("Origin", "http://localhost:" + port);
+                .header("Origin", "http://localhost:" + port)
+                .header("Authorization", "Bearer " + ADMIN_TOKEN);
 
         // Test the response has CORS headers and returned status 400
         MvcResult mvcresult = mockMvc.perform(requestBuilder).andExpect(badRequest).andExpect(cors).andReturn();
@@ -217,7 +223,8 @@ public class SubscriptionEndpointTest {
         MockMvc mockMvc = builder.build();
         MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.post("/Subscription")
                 .content(subscriptionEmail).header("Content-Type", "application/fhir+json")
-                .header("Access-Control-Request-Method", "POST").header("Origin", "http://localhost:" + port);
+                .header("Access-Control-Request-Method", "POST").header("Origin", "http://localhost:" + port)
+                .header("Authorization", "Bearer " + ADMIN_TOKEN);
 
         // Test the response has CORS headers and returned status 400
         MvcResult mvcresult = mockMvc.perform(requestBuilder).andExpect(badRequest).andExpect(cors).andReturn();
@@ -241,7 +248,8 @@ public class SubscriptionEndpointTest {
         MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.delete("/Subscription")
                 .param("identifier", "minimal").param("patient.identifier", "pat013")
                 .header("Content-Type", "application/fhir+json").header("Access-Control-Request-Method", "DELETE")
-                .header("Origin", "http://localhost:" + port);
+                .header("Origin", "http://localhost:" + port)
+                .header("Authorization", "Bearer " + ADMIN_TOKEN);
 
         // Test the response has CORS headers and returned status 200
         MvcResult mvcresult = mockMvc.perform(requestBuilder).andExpect(ok).andExpect(cors).andReturn();
@@ -382,5 +390,50 @@ public class SubscriptionEndpointTest {
 
         // Validate the bundle is empty
         Assert.assertEquals(0, bundle.getTotal());
+    }
+
+    @Test
+    public void submitSubscriptionWithoutTokenIsUnauthorized() throws Exception {
+        MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
+        MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.post("/Subscription")
+                .content(subscriptionPended).header("Content-Type", "application/fhir+json")
+                .header("Access-Control-Request-Method", "POST").header("Origin", "http://localhost:" + port);
+        mockMvc.perform(requestBuilder).andExpect(unauthorized)
+                .andExpect(MockMvcResultMatchers.content().contentTypeCompatibleWith("application/fhir+json"));
+    }
+
+    @Test
+    public void submitSubscriptionWithInvalidTokenIsUnauthorized() throws Exception {
+        MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
+        MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.post("/Subscription")
+                .content(subscriptionPended).header("Content-Type", "application/fhir+json")
+                .header("Origin", "http://localhost:" + port).header("Authorization", "Bearer not-a-valid-token");
+        mockMvc.perform(requestBuilder).andExpect(unauthorized);
+    }
+
+    @Test
+    public void deleteSubscriptionWithoutTokenIsUnauthorized() throws Exception {
+        MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
+        MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.delete("/Subscription")
+                .param("identifier", "minimal").param("patient.identifier", "pat013")
+                .header("Accept", "application/fhir+json").header("Origin", "http://localhost:" + port);
+        mockMvc.perform(requestBuilder).andExpect(unauthorized);
+    }
+
+    @Test
+    public void notifyWithoutTokenIsUnauthorized() throws Exception {
+        MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
+        MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.post("/notify/minimal")
+                .content("forged notification").header("Content-Type", "text/plain");
+        mockMvc.perform(requestBuilder).andExpect(unauthorized);
+    }
+
+    @Test
+    public void notifyWithTokenIsOk() throws Exception {
+        MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
+        MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.post("/notify/minimal")
+                .content("notification").header("Content-Type", "text/plain")
+                .header("Authorization", "Bearer " + ADMIN_TOKEN);
+        mockMvc.perform(requestBuilder).andExpect(ok);
     }
 }

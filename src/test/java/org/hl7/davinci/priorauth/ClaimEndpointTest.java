@@ -44,6 +44,9 @@ public class ClaimEndpointTest {
   @Autowired
   private WebApplicationContext wac;
 
+  private static final String ADMIN_TOKEN = "Y3YWq2l08kvFqy50fQJY";
+
+  private static ResultMatcher unauthorized = MockMvcResultMatchers.status().isUnauthorized();
   private static ResultMatcher cors = MockMvcResultMatchers.header().string("Access-Control-Allow-Origin", "*");
   private static ResultMatcher ok = MockMvcResultMatchers.status().isOk();
   private static ResultMatcher notFound = MockMvcResultMatchers.status().isNotFound();
@@ -63,11 +66,16 @@ public class ClaimEndpointTest {
     claimMap.put("status", FhirUtils.getStatusFromResource(claim));
     claimMap.put("resource", claim);
     App.getDB().write(Table.CLAIM, claimMap);
+
+    // A second Claim used by the authorized DELETE test
+    claimMap.put("id", "toDelete");
+    App.getDB().write(Table.CLAIM, claimMap);
   }
 
   @AfterClass
   public static void cleanup() {
     App.getDB().delete(Table.CLAIM, "minimal", "1");
+    App.getDB().delete(Table.CLAIM, "toDelete", "1");
   }
 
   @Test
@@ -178,5 +186,52 @@ public class ClaimEndpointTest {
 
     // Test the response has CORS headers and returned status 404
     mockMvc.perform(requestBuilder).andExpect(notFound).andExpect(cors);
+  }
+
+  @Test
+  public void deleteClaimWithoutTokenIsUnauthorized() throws Exception {
+    MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
+    MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.delete("/Claim")
+        .param("identifier", "minimal").param("patient.identifier", "1").header("Accept", "application/fhir+json")
+        .header("Origin", "http://localhost:" + port);
+    mockMvc.perform(requestBuilder).andExpect(unauthorized);
+
+    // The Claim must not have been deleted
+    claimExists();
+  }
+
+  @Test
+  public void deleteClaimWithoutTokenNegotiatesPlainJson() throws Exception {
+    MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
+    MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.delete("/Claim")
+        .param("identifier", "minimal").param("patient.identifier", "1").header("Accept", "application/json")
+        .header("Origin", "http://localhost:" + port);
+    mockMvc.perform(requestBuilder).andExpect(unauthorized)
+        .andExpect(MockMvcResultMatchers.content().contentTypeCompatibleWith("application/json"));
+    claimExists();
+  }
+
+  @Test
+  public void deleteClaimWithInvalidTokenIsUnauthorized() throws Exception {
+    MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
+    MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.delete("/Claim")
+        .param("identifier", "minimal").param("patient.identifier", "1").header("Accept", "application/fhir+xml")
+        .header("Origin", "http://localhost:" + port).header("Authorization", "Bearer not-a-valid-token");
+    mockMvc.perform(requestBuilder).andExpect(unauthorized);
+    claimExists();
+  }
+
+  @Test
+  public void deleteClaimWithToken() throws Exception {
+    MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
+    MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.delete("/Claim")
+        .param("identifier", "toDelete").param("patient.identifier", "1").header("Accept", "application/fhir+json")
+        .header("Origin", "http://localhost:" + port).header("Authorization", "Bearer " + ADMIN_TOKEN);
+    mockMvc.perform(requestBuilder).andExpect(ok).andExpect(cors);
+
+    Map<String, Object> constraintMap = new HashMap<String, Object>();
+    constraintMap.put("id", "toDelete");
+    constraintMap.put("patient", "1");
+    Assert.assertNull(App.getDB().read(Table.CLAIM, constraintMap));
   }
 }
