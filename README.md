@@ -104,6 +104,7 @@ If debug mode is enabled the following endpoints are available for use at `http:
 | `/debug/Convert`                      | `POST`  | Convert a CQL body (string) into Elm (xml)                                                                                                                             |
 | `/debug/ReleaseClaim?identifier={id}` | `GET`   | Releases a claim by `id` from a pended state and triggers the subscription workflow.                                                                                   |
 | `/$expunge`                           | `POST`  | Delete all entried in all tables                                                                                                                                       |
+| `/Log`                                | `GET`   | Raw application log. Requires `Authorization: Bearer <token>` matching `PRIORAUTH_LOG_ADMINTOKEN` (`priorauth.log.admin-token`); disabled if unset |
 
 ## Authorization
 
