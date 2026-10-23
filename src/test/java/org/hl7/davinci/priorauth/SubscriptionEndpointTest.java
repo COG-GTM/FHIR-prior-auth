@@ -15,6 +15,7 @@ import org.hl7.fhir.r4.model.OperationOutcome.OperationOutcomeIssueComponent;
 import org.hl7.fhir.r4.model.Subscription.SubscriptionStatus;
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.hl7.davinci.priorauth.Audit.AuditEventOutcome;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -403,5 +404,18 @@ public class SubscriptionEndpointTest {
                 .header("Access-Control-Request-Method", "GET").header("Origin", "http://localhost:" + port);
 
         mockMvc.perform(requestBuilder).andExpect(MockMvcResultMatchers.status().isUnauthorized()).andExpect(cors);
+    }
+
+    @Test
+    public void getSubscriptionWithoutTokenIsUnauthorizedAndAudited() throws Exception {
+        MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
+        MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders
+                .get("/Subscription?identifier=pended&patient.identifier=pat013").header("Accept", "application/fhir+json")
+                .header("Access-Control-Request-Method", "GET").header("Authorization", "Bearer not-a-valid-token")
+                .header("Origin", "http://localhost:" + port);
+
+        mockMvc.perform(requestBuilder).andExpect(MockMvcResultMatchers.status().isUnauthorized()).andExpect(cors);
+        Assert.assertEquals(AuditEventOutcome.MINOR_FAILURE.toCode(),
+                AuthTestHelper.latestAuditOutcome("Subscription/pended"));
     }
 }

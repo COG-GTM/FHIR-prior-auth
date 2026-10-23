@@ -234,6 +234,17 @@ public class ClaimResponseEndpointTest {
   }
 
   @Test
+  public void getExistingClaimResponseWithoutTokenAuditsRequestedId() throws Exception {
+    MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
+    MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders
+        .get("/ClaimResponse?identifier=minimal&patient.identifier=1").header("Accept", "application/fhir+json")
+        .header("Access-Control-Request-Method", "GET").header("Origin", "http://localhost:" + port);
+
+    mockMvc.perform(requestBuilder).andExpect(unauthorized).andExpect(cors);
+    Assert.assertEquals(AuditEventOutcome.MINOR_FAILURE.toCode(), AuthTestHelper.latestAuditOutcome("ClaimResponse/minimal"));
+  }
+
+  @Test
   public void searchClaimResponsesWithoutTokenIsUnauthorized() throws Exception {
     MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
     MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.get("/ClaimResponse?patient.identifier=1")

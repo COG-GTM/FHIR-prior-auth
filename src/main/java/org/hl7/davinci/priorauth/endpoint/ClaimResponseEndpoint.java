@@ -44,6 +44,10 @@ public class ClaimResponseEndpoint {
 
   public ResponseEntity<String> readClaimResponse(String id, String patient, String status, HttpServletRequest request,
       RequestType requestType) {
+    ResponseEntity<String> unauthenticated = Endpoint.rejectUnauthenticatedRead(Table.CLAIM_RESPONSE, id, request);
+    if (unauthenticated != null)
+      return unauthenticated;
+
     Map<String, Object> constraintMap = new HashMap<>();
 
     // get the claim id from the claim response id

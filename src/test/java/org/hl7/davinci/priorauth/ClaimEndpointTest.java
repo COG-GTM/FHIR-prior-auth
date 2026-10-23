@@ -201,7 +201,9 @@ public class ClaimEndpointTest {
         .header("Access-Control-Request-Method", "GET").header("Origin", "http://localhost:" + port);
 
     MvcResult mvcresult = mockMvc.perform(requestBuilder).andExpect(unauthorized).andExpect(cors).andReturn();
-    Assert.assertFalse(mvcresult.getResponse().getContentAsString().contains("resourceType"));
+    String body = mvcresult.getResponse().getContentAsString();
+    Assert.assertFalse(body.contains("resourceType"));
+    Assert.assertTrue(new com.fasterxml.jackson.databind.ObjectMapper().readTree(body).has("error"));
     Assert.assertEquals(AuditEventOutcome.MINOR_FAILURE.toCode(), AuthTestHelper.latestAuditOutcome("Claim/unauthNoToken"));
   }
 

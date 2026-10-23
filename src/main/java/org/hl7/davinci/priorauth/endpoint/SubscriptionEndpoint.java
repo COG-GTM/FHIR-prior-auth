@@ -64,6 +64,9 @@ public class SubscriptionEndpoint {
     public ResponseEntity<String> readSubscriptionJSON(HttpServletRequest request,
             @RequestParam(name = "identifier", required = false) String id,
             @RequestParam(name = "patient.identifier") String patient) {
+        ResponseEntity<String> unauthenticated = Endpoint.rejectUnauthenticatedRead(Table.SUBSCRIPTION, id, request);
+        if (unauthenticated != null)
+            return unauthenticated;
         Map<String, Object> constraintMap = new HashMap<>();
         constraintMap.put("claimResponseId", id);
         constraintMap.put("patient", patient);
@@ -74,6 +77,9 @@ public class SubscriptionEndpoint {
     public ResponseEntity<String> readSubscriptionXML(HttpServletRequest request,
             @RequestParam(name = "identifier", required = false) String id,
             @RequestParam(name = "patient.identifier") String patient) {
+        ResponseEntity<String> unauthenticated = Endpoint.rejectUnauthenticatedRead(Table.SUBSCRIPTION, id, request);
+        if (unauthenticated != null)
+            return unauthenticated;
         Map<String, Object> constraintMap = new HashMap<>();
         constraintMap.put("claimResponseId", id);
         constraintMap.put("patient", patient);
