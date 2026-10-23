@@ -124,6 +124,13 @@ public class LogEndpointTest {
   }
 
   @Test
+  public void getLogWithBlankConfiguredAdminTokenIsRejected() throws Exception {
+    setDebugMode(true);
+    ReflectionTestUtils.setField(wac.getBean(LogEndpoint.class), "adminToken", "   ");
+    mockMvc().perform(getLog("   ")).andExpect(notFound).andExpect(noCors);
+  }
+
+  @Test
   public void unauthenticatedGetLogInDebugModeIsRejected() throws Exception {
     setDebugMode(true);
     mockMvc().perform(getLog()).andExpect(unauthorized).andExpect(noCors);

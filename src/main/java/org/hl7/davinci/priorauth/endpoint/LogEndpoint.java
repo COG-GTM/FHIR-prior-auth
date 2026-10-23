@@ -41,7 +41,7 @@ public class LogEndpoint {
     @GetMapping("")
     public ResponseEntity<String> getLog(HttpServletRequest request) {
         logger.info("GET /Log");
-        if (!App.isDebugModeEnabled() || adminToken == null || adminToken.isEmpty()) {
+        if (!App.isDebugModeEnabled() || adminToken == null || adminToken.trim().isEmpty()) {
             logger.warning("LogEndpoint::GET /Log rejected: endpoint disabled (debug mode off or no admin token configured)");
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
