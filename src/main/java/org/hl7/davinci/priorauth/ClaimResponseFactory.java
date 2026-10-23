@@ -78,7 +78,7 @@ public class ClaimResponseFactory {
     public static Bundle generateAndStoreClaimResponse(Bundle bundle, Claim claim, String id,
             Disposition responseDisposition, ClaimResponseStatus responseStatus, String patient,
             boolean isScheduledUpdate) {
-        logger.info("ClaimResponseFactory::generateAndStoreClaimResponse(" + id + "/" + patient + ", disposition: "
+        logger.info("ClaimResponseFactory::generateAndStoreClaimResponse(" + id + "/" + LogRedactor.maskPatient(patient) + ", disposition: "
                 + responseDisposition + ", status: " + responseStatus + ")");
         
         boolean hasRequestTrigger = false;

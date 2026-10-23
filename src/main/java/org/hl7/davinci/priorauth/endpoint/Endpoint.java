@@ -10,6 +10,7 @@ import javax.servlet.http.HttpServletRequest;
 import org.hl7.davinci.priorauth.App;
 import org.hl7.davinci.priorauth.Audit;
 import org.hl7.davinci.priorauth.FhirUtils;
+import org.hl7.davinci.priorauth.LogRedactor;
 import org.hl7.davinci.priorauth.PALogger;
 import org.hl7.davinci.priorauth.Audit.AuditEventOutcome;
 import org.hl7.davinci.priorauth.Audit.AuditEventType;
@@ -49,7 +50,7 @@ public class Endpoint {
      */
     public static ResponseEntity<String> read(Table table, Map<String, Object> constraintMap,
             HttpServletRequest request, RequestType requestType) {
-        logger.info("GET /" + table.value() + ":" + constraintMap.toString() + " fhir+" + requestType.name());
+        logger.info("GET /" + table.value() + ":" + LogRedactor.redactMap(constraintMap) + " fhir+" + requestType.name());
         App.setBaseUrl(Endpoint.getServiceBaseUrl(request));
         String referenceUrl = table.value() + "/" + constraintMap.get("id");
         if (!constraintMap.containsKey("patient")) {
@@ -112,7 +113,7 @@ public class Endpoint {
      */
     public static ResponseEntity<String> delete(String id, String patient, Table table, HttpServletRequest request,
             RequestType requestType) {
-        logger.info("DELETE /" + table.value() + ":" + id + "/" + patient + " fhir+" + requestType.name());
+        logger.info("DELETE /" + table.value() + ":" + id + "/" + LogRedactor.maskPatient(patient) + " fhir+" + requestType.name());
         HttpStatus status = HttpStatus.OK;
         OperationOutcome outcome = null;
         AuditEventOutcome auditOutcome = AuditEventOutcome.MINOR_FAILURE;

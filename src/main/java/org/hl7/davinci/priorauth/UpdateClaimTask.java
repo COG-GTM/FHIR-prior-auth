@@ -47,7 +47,7 @@ public class UpdateClaimTask extends TimerTask {
      * @param disposition - the new disposition of the updated Claim.
      */
     private Bundle updatePendedClaim(Bundle bundle, String claimId, String patient) {
-        logger.info("ClaimEndpoint::updateClaim(" + claimId + "/" + patient + ")");
+        logger.info("ClaimEndpoint::updateClaim(" + claimId + "/" + LogRedactor.maskPatient(patient) + ")");
 
         // Generate a new id...
         String id = UUID.randomUUID().toString();

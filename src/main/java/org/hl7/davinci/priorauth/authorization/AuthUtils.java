@@ -151,7 +151,7 @@ public class AuthUtils {
      */
     private static String getAccessToken(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
-        logger.log(Level.FINE, "AuthEndpoint::getAccessToken:Authorization header: " + authHeader);
+        logger.log(Level.FINE, "AuthEndpoint::getAccessToken:Authorization header present: " + (authHeader != null));
         if (authHeader != null) {
             String regex = "Bearer (.*)";
             Pattern pattern = Pattern.compile(regex);
