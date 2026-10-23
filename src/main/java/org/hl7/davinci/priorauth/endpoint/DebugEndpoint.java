@@ -14,6 +14,7 @@ import java.util.logging.Logger;
 import javax.servlet.http.HttpServletRequest;
 
 import org.hl7.davinci.priorauth.*;
+import org.hl7.davinci.priorauth.authorization.AuthUtils;
 import org.hl7.fhir.instance.model.api.IBaseResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
@@ -80,6 +81,20 @@ public class DebugEndpoint {
   @GetMapping("/ReleaseClaim")
   public ResponseEntity<String> releaseClaim(HttpServletRequest request, @RequestParam(name = "identifier", required = false) String id)
   {
+    if (!App.isDebugModeEnabled()) {
+      logger.warning("DebugEndpoint::release claim disabled");
+      String description = "Attempted to release pended claim but app not in debug mode";
+      Audit.createAuditEvent(AuditEventType.REST, AuditEventAction.E, AuditEventOutcome.MINOR_FAILURE, null, request, description);
+      return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+    }
+
+    if (!AuthUtils.validateAccessToken(request)) {
+      String description = "Attempted to release pended claim with invalid access token";
+      Audit.createAuditEvent(AuditEventType.REST, AuditEventAction.E, AuditEventOutcome.MAJOR_FAILURE, null, request, description);
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).contentType(MediaType.APPLICATION_JSON)
+          .body("{ error: \"Invalid access token. Make sure to use Authorization: Bearer (token)\" }");
+    }
+
     Map<String, Object> constraintMap = new HashMap<>();
     constraintMap.put("id", id);
     IBaseResource bundle = App.getDB().read(Table.BUNDLE, constraintMap);
@@ -95,6 +110,9 @@ public class DebugEndpoint {
     }
 
     new UpdateClaimTask((Bundle)bundle, id, patient).run();
+
+    String description = "Released pended claim " + id + " in debug mode by client " + AuthUtils.getClientId(request);
+    Audit.createAuditEvent(AuditEventType.REST, AuditEventAction.E, AuditEventOutcome.SUCCESS, "Claim/" + id, request, description);
 
     return new ResponseEntity<>("Release for " + id + " scheduled.", HttpStatus.OK);
   }
