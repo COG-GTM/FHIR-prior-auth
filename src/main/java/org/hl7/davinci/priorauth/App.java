@@ -44,6 +44,7 @@ public class App {
       (System.getenv("debug") != null && System.getenv("debug").equalsIgnoreCase("true"))) {
         debugMode = true;
     }
+    AuthUtils.warnIfBypassAuthConfigured();
     // Set the DB
     initializeAppDB();
     // Assemble the microservice

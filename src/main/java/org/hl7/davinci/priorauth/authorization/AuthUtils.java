@@ -27,6 +27,9 @@ public class AuthUtils {
     private static final String ADMIN_TOKEN = "Y3YWq2l08kvFqy50fQJY";
     private static final String BYPASS_AUTH = "BYPASS_AUTH";
 
+    public static final String SCOPE_CLAIM_WRITE = "system/Claim.write";
+    public static final String SCOPE_CLAIM_RESPONSE_READ = "system/ClaimResponse.read";
+
     /**
      * Populate the Client table with default data
      */
@@ -74,14 +77,6 @@ public class AuthUtils {
      */
     public static boolean validateAccessToken(HttpServletRequest request) {
 
-        String bypassAuthEnv = System.getenv(BYPASS_AUTH);
-        boolean bypassAuth = bypassAuthEnv != null && bypassAuthEnv.equalsIgnoreCase("true");
-
-        if (bypassAuth) {
-            logger.fine("AuthEndpoint::validateAccessToken:Bypass auth enabled");
-            return true;
-        }
-
         String accessToken = getAccessToken(request);
         if (accessToken == null) return false;
 
@@ -116,6 +111,71 @@ public class AuthUtils {
     }
 
     /**
+     * Determine whether the access token in the Authorization header was granted a scope
+     * satisfying requiredScope. Callers must check validateAccessToken first.
+     *
+     * @param request       HttpServletRequest
+     * @param requiredScope SMART scope required by the operation, e.g. system/Claim.write
+     * @return true if the token's granted scopes satisfy requiredScope
+     */
+    public static boolean hasScope(HttpServletRequest request, String requiredScope) {
+        String accessToken = getAccessToken(request);
+        if (accessToken == null) return false;
+
+        if (accessToken.equals(ADMIN_TOKEN)) return true;
+
+        String grantedScopes = App.getDB().readString(Table.CLIENT, Collections.singletonMap("token", accessToken), "scope");
+        boolean allowed = scopeSatisfies(grantedScopes, requiredScope);
+        if (!allowed)
+            logger.warning("AuthUtils::hasScope:Access token lacks required scope " + requiredScope);
+        return allowed;
+    }
+
+    /**
+     * Check whether a space separated list of granted SMART scopes satisfies a required scope.
+     * Wildcards (*) are honoured for both the resource type and the access level.
+     *
+     * @param grantedScopes space separated granted scopes (may be null)
+     * @param requiredScope required scope in the form context/ResourceType.access
+     * @return true if any granted scope satisfies requiredScope
+     */
+    public static boolean scopeSatisfies(String grantedScopes, String requiredScope) {
+        if (grantedScopes == null || requiredScope == null) return false;
+        String[] required = parseScope(requiredScope);
+        if (required == null) return false;
+
+        for (String granted : grantedScopes.trim().split("\\s+")) {
+            String[] g = parseScope(granted);
+            if (g == null) continue;
+            boolean contextMatches = g[0].equals(required[0]);
+            boolean resourceMatches = g[1].equals("*") || g[1].equals(required[1]);
+            boolean accessMatches = g[2].equals("*") || g[2].equals(required[2]);
+            if (contextMatches && resourceMatches && accessMatches) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Split a SMART scope (context/ResourceType.access) into its three parts
+     *
+     * @param scope the scope string
+     * @return [context, resourceType, access] or null if the scope is not a resource scope
+     */
+    private static String[] parseScope(String scope) {
+        Matcher matcher = Pattern.compile("^(patient|user|system)/([A-Za-z]+|\\*)\\.(read|write|\\*)$").matcher(scope);
+        if (!matcher.matches()) return null;
+        return new String[] { matcher.group(1), matcher.group(2), matcher.group(3) };
+    }
+
+    /**
+     * Log loudly at startup if the removed BYPASS_AUTH kill-switch is still configured
+     */
+    public static void warnIfBypassAuthConfigured() {
+        if (System.getenv(BYPASS_AUTH) != null)
+            logger.severe("AuthUtils::" + BYPASS_AUTH + " is set but is no longer supported and is ignored. Authentication is always enforced.");
+    }
+
+    /**
      * Helper method to get client id via the access token from the request
      * 
      * @param request HttpServletRequest
@@ -139,6 +199,10 @@ public class AuthUtils {
     public static List<String> getSupportedScopes() {
         ArrayList<String> scopes = new ArrayList<>();
         scopes.add("system/*.read");
+        scopes.add("system/*.write");
+        scopes.add("system/Claim.read");
+        scopes.add(SCOPE_CLAIM_WRITE);
+        scopes.add(SCOPE_CLAIM_RESPONSE_READ);
         scopes.add("offline_access");
         return scopes;
     }
