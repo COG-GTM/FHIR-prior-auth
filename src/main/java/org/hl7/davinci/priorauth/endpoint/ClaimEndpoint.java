@@ -120,6 +120,10 @@ public class ClaimEndpoint {
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).contentType(MediaType.APPLICATION_JSON)
           .body("{ error: \"Invalid access token. Make sure to use Authorization: Bearer (token)\" }");
 
+    if (!AuthUtils.hasScope(request, AuthUtils.SCOPE_CLAIM_WRITE))
+      return ResponseEntity.status(HttpStatus.FORBIDDEN).contentType(MediaType.APPLICATION_JSON)
+          .body("{ \"error\": \"insufficient_scope\", \"scope\": \"" + AuthUtils.SCOPE_CLAIM_WRITE + "\" }");
+
     String id = null;
     String patient = null;
     HttpStatus status = HttpStatus.BAD_REQUEST;

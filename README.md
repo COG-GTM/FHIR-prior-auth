@@ -150,6 +150,8 @@ HTTP POST
 
 Th client_assertion is a signed JWT token following [this structure](https://build.fhir.org/ig/HL7/us-bulk-data/authorization/index.html#obtaining-an-access-token).
 
+Supported scopes are advertised in `/.well-known/smart-configuration` (`scopes_supported`); requesting any other scope returns `invalid_scope`. The granted scope is stored with the token and returned in the `scope` field of the response. `Claim/$submit` requires `system/Claim.write` (or `system/*.write`) and `Claim/$inquire` requires `system/ClaimResponse.read` (or `system/*.read`); a valid token without the required scope receives `403 Forbidden`.
+
 The response will be a JSON object containing the `access_token`. This token will only be valid for 5 minutes. In all requests to the server you must add the `Authorization: Bearer {access_token}` header to the HTTP request.
 
 ## Contents of `/Claim/$submit` Submission

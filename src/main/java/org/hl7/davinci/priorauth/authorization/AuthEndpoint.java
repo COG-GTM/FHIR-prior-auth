@@ -9,11 +9,15 @@ import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.RSAPublicKeySpec;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -65,6 +69,7 @@ public class AuthEndpoint {
 
     static final String INVALID_REQUEST = "invalid_request";
     static final String INVALID_CLIENT = "invalid_client";
+    static final String INVALID_SCOPE = "invalid_scope";
 
     @PostMapping(value = "/register", consumes = { MediaType.APPLICATION_JSON_VALUE, "application/fhir+json" })
     public ResponseEntity<String> registerClient(HttpServletRequest request, HttpEntity<String> entity) {
@@ -139,15 +144,21 @@ public class AuthEndpoint {
         }
 
         // Check scope
-        String[] requestedScopes = scope.split(" ");
+        Set<String> requestedScopes = new LinkedHashSet<>(Arrays.asList(scope.trim().split("\\s+")));
+        requestedScopes.remove("");
+        if (requestedScopes.isEmpty()) {
+            Audit.createAuditEvent(AuditEventType.REST, AuditEventAction.E, AuditEventOutcome.MAJOR_FAILURE, null, request, "POST /token" + requestQueryParams);
+            return sendError(INVALID_SCOPE, "scope is required");
+        }
         for(String requestedScope : requestedScopes) {
             if (!AuthUtils.getSupportedScopes().contains(requestedScope)) {
                 String message = "requested scope " + requestedScope + " is not supported";
                 logger.warning("AuthEndpoint::token:" + message);
                 Audit.createAuditEvent(AuditEventType.REST, AuditEventAction.E, AuditEventOutcome.MAJOR_FAILURE, null, request, "POST /token" + requestQueryParams);
-                return sendError(INVALID_REQUEST, message);
+                return sendError(INVALID_SCOPE, message);
             }
         }
+        final String grantedScope = String.join(" ", requestedScopes);
 
         String[] jwtParts = token.split("\\.");
         if (jwtParts.length != 3) {
@@ -211,9 +222,12 @@ public class AuthEndpoint {
         // Verification was successful - authorize
         final String authToken = generateAuthToken();
 
-        if (clientId != null)
-            App.getDB().update(Table.CLIENT, Collections.singletonMap("id", clientId),
-                    Collections.singletonMap("token", authToken));
+        if (clientId != null) {
+            Map<String, Object> tokenData = new LinkedHashMap<>();
+            tokenData.put("token", authToken);
+            tokenData.put("scope", grantedScope);
+            App.getDB().update(Table.CLIENT, Collections.singletonMap("id", clientId), tokenData);
+        }
 
         Audit.createAuditEvent(AuditEventType.REST, AuditEventAction.E, AuditEventOutcome.SUCCESS, null, request, "POST /token" + requestQueryParams);
 
@@ -222,7 +236,7 @@ public class AuthEndpoint {
         response.put("access_token", authToken);
         response.put("token_type", "bearer");
         response.put("expires_in", AuthUtils.TOKEN_LIFE_MIN * 60);
-        response.put("scope", "system/*.read");
+        response.put("scope", grantedScope);
         return ResponseEntity.status(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
                 .cacheControl(CacheControl.noStore()).header("Pragma", "no-cache")
                 .body(JSONObject.toJSONString(response));

@@ -78,6 +78,10 @@ public class ClaimInquiryEndpoint {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).contentType(MediaType.APPLICATION_JSON)
                     .body("{ error: \"Invalid access token. Make sure to use Authorization: Bearer (token)\" }");
 
+        if (!AuthUtils.hasScope(request, AuthUtils.SCOPE_CLAIM_RESPONSE_READ))
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).contentType(MediaType.APPLICATION_JSON)
+                    .body("{ \"error\": \"insufficient_scope\", \"scope\": \"" + AuthUtils.SCOPE_CLAIM_RESPONSE_READ + "\" }");
+
         HttpStatus status = HttpStatus.BAD_REQUEST;
         String formattedData = null;
         AuditEventOutcome auditOutcome = AuditEventOutcome.MINOR_FAILURE;

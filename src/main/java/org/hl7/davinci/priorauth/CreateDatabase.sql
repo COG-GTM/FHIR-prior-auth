@@ -78,8 +78,11 @@ BEGIN TRANSACTION;
         "jwks" varchar DEFAULT NULL,
         "jwks_url" varchar DEFAULT NULL,
         "token" varchar DEFAULT NULL,
+        "scope" varchar DEFAULT NULL,
         "timestamp" datetime DEFAULT CURRENT_TIMESTAMP,
         "organization" clob
     );
+
+    ALTER TABLE Client ADD COLUMN IF NOT EXISTS "scope" varchar DEFAULT NULL;
 
 COMMIT;
