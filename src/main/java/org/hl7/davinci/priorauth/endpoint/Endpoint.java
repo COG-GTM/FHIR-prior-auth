@@ -2,6 +2,7 @@ package org.hl7.davinci.priorauth.endpoint;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
@@ -23,6 +24,7 @@ import org.hl7.fhir.r4.model.AuditEvent.AuditEventAction;
 import org.hl7.fhir.r4.model.OperationOutcome.IssueSeverity;
 import org.hl7.fhir.r4.model.OperationOutcome.IssueType;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.InvalidMediaTypeException;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
@@ -123,7 +125,7 @@ public class Endpoint {
         if (!AuthUtils.validateAccessToken(request)) {
             Audit.createAuditEvent(AuditEventType.REST, AuditEventAction.D, AuditEventOutcome.MINOR_FAILURE, referenceUrl,
                     request, "Attempted to delete " + referenceUrl + " but is unauthorized");
-            return unauthorized(requestType);
+            return unauthorized(request, requestType);
         }
         if (id == null) {
             // Do not delete everything
@@ -155,15 +157,38 @@ public class Endpoint {
      * Build a 401 response with an OperationOutcome explaining the missing or
      * invalid bearer token
      * 
+     * @param request     - the request, used to negotiate the response media type.
      * @param requestType - the RequestType of the request.
      * @return 401 Unauthorized response
      */
-    public static ResponseEntity<String> unauthorized(RequestType requestType) {
+    public static ResponseEntity<String> unauthorized(HttpServletRequest request, RequestType requestType) {
         OperationOutcome outcome = FhirUtils.buildOutcome(IssueSeverity.ERROR, IssueType.SECURITY, UNAUTHORIZED_MSG);
-        MediaType contentType = MediaType
-                .parseMediaType(requestType == RequestType.JSON ? "application/fhir+json" : "application/fhir+xml");
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).contentType(contentType)
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).contentType(negotiateMediaType(request, requestType))
                 .body(FhirUtils.getFormattedData(outcome, requestType));
+    }
+
+    /**
+     * Prefer the FHIR media type, falling back to plain JSON/XML when that is
+     * all the client accepts
+     */
+    private static MediaType negotiateMediaType(HttpServletRequest request, RequestType requestType) {
+        MediaType fhirType = MediaType
+                .parseMediaType(requestType == RequestType.JSON ? "application/fhir+json" : "application/fhir+xml");
+        MediaType plainType = requestType == RequestType.JSON ? MediaType.APPLICATION_JSON : MediaType.APPLICATION_XML;
+        String accept = request.getHeader(HttpHeaders.ACCEPT);
+        if (accept == null || accept.isBlank())
+            return fhirType;
+        List<MediaType> accepted;
+        try {
+            accepted = MediaType.parseMediaTypes(accept);
+        } catch (InvalidMediaTypeException e) {
+            return fhirType;
+        }
+        if (accepted.stream().anyMatch(type -> type.includes(fhirType)))
+            return fhirType;
+        if (accepted.stream().anyMatch(type -> type.includes(plainType)))
+            return plainType;
+        return fhirType;
     }
 
     /**

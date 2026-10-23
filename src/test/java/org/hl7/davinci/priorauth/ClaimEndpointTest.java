@@ -201,6 +201,17 @@ public class ClaimEndpointTest {
   }
 
   @Test
+  public void deleteClaimWithoutTokenNegotiatesPlainJson() throws Exception {
+    MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
+    MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.delete("/Claim")
+        .param("identifier", "minimal").param("patient.identifier", "1").header("Accept", "application/json")
+        .header("Origin", "http://localhost:" + port);
+    mockMvc.perform(requestBuilder).andExpect(unauthorized)
+        .andExpect(MockMvcResultMatchers.content().contentTypeCompatibleWith("application/json"));
+    claimExists();
+  }
+
+  @Test
   public void deleteClaimWithInvalidTokenIsUnauthorized() throws Exception {
     MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
     MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.delete("/Claim")

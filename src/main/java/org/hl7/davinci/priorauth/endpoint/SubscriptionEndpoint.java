@@ -111,7 +111,7 @@ public class SubscriptionEndpoint {
         if (!AuthUtils.validateAccessToken(request)) {
             Audit.createAuditEvent(AuditEventType.REST, AuditEventAction.C, AuditEventOutcome.MINOR_FAILURE, null, request,
                     "Attempted to subscribe but is unauthorized");
-            return Endpoint.unauthorized(requestType);
+            return Endpoint.unauthorized(request, requestType);
         }
 
         HttpStatus status = HttpStatus.CREATED;
