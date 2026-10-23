@@ -129,7 +129,7 @@
 									"bearer": [
 										{
 											"key": "token",
-											"value": "Y3YWq2l08kvFqy50fQJY",
+											"value": "{{access_token}}",
 											"type": "string"
 										}
 									]
@@ -181,7 +181,7 @@
 									"bearer": [
 										{
 											"key": "token",
-											"value": "Y3YWq2l08kvFqy50fQJY",
+											"value": "{{access_token}}",
 											"type": "string"
 										}
 									]
@@ -233,7 +233,7 @@
 									"bearer": [
 										{
 											"key": "token",
-											"value": "Y3YWq2l08kvFqy50fQJY",
+											"value": "{{access_token}}",
 											"type": "string"
 										}
 									]
@@ -284,7 +284,7 @@
 									"bearer": [
 										{
 											"key": "token",
-											"value": "Y3YWq2l08kvFqy50fQJY",
+											"value": "{{access_token}}",
 											"type": "string"
 										}
 									]
@@ -325,7 +325,7 @@
 									"bearer": [
 										{
 											"key": "token",
-											"value": "Y3YWq2l08kvFqy50fQJY",
+											"value": "{{access_token}}",
 											"type": "string"
 										}
 									]
@@ -365,7 +365,7 @@
 									"bearer": [
 										{
 											"key": "token",
-											"value": "Y3YWq2l08kvFqy50fQJY",
+											"value": "{{access_token}}",
 											"type": "string"
 										}
 									]
@@ -406,7 +406,7 @@
 									"bearer": [
 										{
 											"key": "token",
-											"value": "Y3YWq2l08kvFqy50fQJY",
+											"value": "{{access_token}}",
 											"type": "string"
 										}
 									]
@@ -449,7 +449,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "Y3YWq2l08kvFqy50fQJY",
+									"value": "{{access_token}}",
 									"type": "string"
 								}
 							]
@@ -493,7 +493,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "Y3YWq2l08kvFqy50fQJY",
+									"value": "{{access_token}}",
 									"type": "string"
 								}
 							]
@@ -537,7 +537,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "Y3YWq2l08kvFqy50fQJY",
+									"value": "{{access_token}}",
 									"type": "string"
 								}
 							]
@@ -578,7 +578,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "Y3YWq2l08kvFqy50fQJY",
+									"value": "{{access_token}}",
 									"type": "string"
 								}
 							]
@@ -619,7 +619,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "Y3YWq2l08kvFqy50fQJY",
+									"value": "{{access_token}}",
 									"type": "string"
 								}
 							]
@@ -660,7 +660,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "Y3YWq2l08kvFqy50fQJY",
+									"value": "{{access_token}}",
 									"type": "string"
 								}
 							]
@@ -704,7 +704,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "Y3YWq2l08kvFqy50fQJY",
+									"value": "{{access_token}}",
 									"type": "string"
 								}
 							]
@@ -745,7 +745,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "Y3YWq2l08kvFqy50fQJY",
+									"value": "{{access_token}}",
 									"type": "string"
 								}
 							]
@@ -794,7 +794,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "Y3YWq2l08kvFqy50fQJY",
+									"value": "{{access_token}}",
 									"type": "string"
 								}
 							]
@@ -834,7 +834,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "Y3YWq2l08kvFqy50fQJY",
+									"value": "{{access_token}}",
 									"type": "string"
 								}
 							]
@@ -874,7 +874,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "Y3YWq2l08kvFqy50fQJY",
+									"value": "{{access_token}}",
 									"type": "string"
 								}
 							]
