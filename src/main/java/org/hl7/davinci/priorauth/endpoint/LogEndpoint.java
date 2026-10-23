@@ -11,6 +11,7 @@ import javax.servlet.http.HttpServletRequest;
 import org.hl7.davinci.priorauth.App;
 import org.hl7.davinci.priorauth.PALogger;
 import org.hl7.davinci.priorauth.authorization.AuthUtils;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,13 +20,16 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Serves the application log. Only available in debug mode and only to callers
- * presenting a valid access token, since the log may contain PHI and credentials.
+ * presenting a valid admin access token, since the log may contain PHI and
+ * credentials of every client.
  */
 @RestController
 @RequestMapping("/Log")
 public class LogEndpoint {
 
     static final Logger logger = PALogger.getLogger();
+
+    private static final String ADMIN_CLIENT_ID = "Admin";
 
     @GetMapping("")
     public ResponseEntity<String> getLog(HttpServletRequest request) {
@@ -34,13 +38,13 @@ public class LogEndpoint {
             logger.warning("LogEndpoint::GET /Log rejected: app not in debug mode");
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
-        if (!AuthUtils.validateAccessToken(request)) {
-            logger.warning("LogEndpoint::GET /Log rejected: missing or invalid access token");
+        if (!AuthUtils.validateAccessToken(request) || !ADMIN_CLIENT_ID.equals(AuthUtils.getClientId(request))) {
+            logger.warning("LogEndpoint::GET /Log rejected: missing, invalid or non-admin access token");
             return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
         }
         try {
             String log = new String(Files.readAllBytes(Paths.get(PALogger.getLogPath())));
-            return new ResponseEntity<>(log, HttpStatus.OK);
+            return ResponseEntity.ok().cacheControl(CacheControl.noStore()).header("Pragma", "no-cache").body(log);
         } catch (IOException e) {
             logger.log(Level.SEVERE, "LogEndpoint::IOException", e);
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);

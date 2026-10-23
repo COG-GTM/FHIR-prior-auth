@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.hl7.davinci.priorauth.Database.Table;
+import org.hl7.davinci.priorauth.authorization.AuthUtils;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -54,8 +55,12 @@ public class LogEndpointTest {
     Path logPath = Paths.get(PALogger.getLogPath());
     if (logPath.getParent() != null)
       Files.createDirectories(logPath.getParent());
-    Files.write(logPath, (LOG_MARKER + System.lineSeparator()).getBytes(StandardCharsets.UTF_8),
-        StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+    PALogger.getLogger().info(LOG_MARKER);
+    if (!Files.exists(logPath)
+        || !new String(Files.readAllBytes(logPath), StandardCharsets.UTF_8).contains(LOG_MARKER)) {
+      Files.write(logPath, (LOG_MARKER + System.lineSeparator()).getBytes(StandardCharsets.UTF_8),
+          StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+    }
     Map<String, Object> client = new HashMap<>();
     client.put("id", CLIENT_ID);
     client.put("token", CLIENT_TOKEN);
@@ -65,6 +70,12 @@ public class LogEndpointTest {
   @AfterClass
   public static void cleanup() {
     App.getDB().delete(Table.CLIENT, CLIENT_ID);
+  }
+
+  private static String adminToken() throws Exception {
+    Field field = AuthUtils.class.getDeclaredField("ADMIN_TOKEN");
+    field.setAccessible(true);
+    return (String) field.get(null);
   }
 
   @After
@@ -92,8 +103,8 @@ public class LogEndpointTest {
   }
 
   @Test
-  public void authenticatedGetLogOutsideDebugModeIsRejected() throws Exception {
-    mockMvc().perform(getLog().header("Authorization", "Bearer " + CLIENT_TOKEN)).andExpect(notFound)
+  public void adminGetLogOutsideDebugModeIsRejected() throws Exception {
+    mockMvc().perform(getLog().header("Authorization", "Bearer " + adminToken())).andExpect(notFound)
         .andExpect(noCors);
   }
 
@@ -111,9 +122,17 @@ public class LogEndpointTest {
   }
 
   @Test
-  public void authenticatedGetLogInDebugModeSucceedsWithoutCors() throws Exception {
+  public void nonAdminClientTokenGetLogInDebugModeIsRejected() throws Exception {
     setDebugMode(true);
-    mockMvc().perform(getLog().header("Authorization", "Bearer " + CLIENT_TOKEN)).andExpect(ok).andExpect(noCors)
+    mockMvc().perform(getLog().header("Authorization", "Bearer " + CLIENT_TOKEN)).andExpect(unauthorized)
+        .andExpect(noCors);
+  }
+
+  @Test
+  public void adminGetLogInDebugModeSucceedsWithoutCorsOrCaching() throws Exception {
+    setDebugMode(true);
+    mockMvc().perform(getLog().header("Authorization", "Bearer " + adminToken())).andExpect(ok).andExpect(noCors)
+        .andExpect(MockMvcResultMatchers.header().string("Cache-Control", "no-store"))
         .andExpect(MockMvcResultMatchers.content().string(Matchers.containsString(LOG_MARKER)));
   }
 }
