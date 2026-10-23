@@ -199,16 +199,16 @@ public class FhirUtils {
     if (patientReference != null && patientReference.hasReference()) {
       // Get the patient through the reference
       String reference = patientReference.getReference();
-      logger.info("FhirUtils::getPatientIdentifier:patientReference:" + reference);
+      logger.info("FhirUtils::getPatientIdentifier:patientReference:" + LogRedactor.maskPatient(reference));
       String[] referenceParts = reference.split("/");
       String patientId = referenceParts[referenceParts.length - 1];
-      logger.info("FhirUtils::getPatientIdentifier:patientId:" + patientId);
+      logger.info("FhirUtils::getPatientIdentifier:patientId:" + LogRedactor.maskPatient(patientId));
 
       // Get the patient resource with the matching id
       BundleEntryComponent bec = getEntryComponentFromBundle(bundle, ResourceType.Patient, patientId);
       if (bec != null) {
         Patient patient = (Patient) bec.getResource();
-        logger.info("FhirUtils::getPatientIdentifier:foundPatient:" + FhirUtils.getIdFromResource(patient));
+        logger.info("FhirUtils::getPatientIdentifier:foundPatient:" + LogRedactor.maskPatient(FhirUtils.getIdFromResource(patient)));
         if (patient.hasIdentifier())
           return patient.getIdentifierFirstRep().getValue();
 

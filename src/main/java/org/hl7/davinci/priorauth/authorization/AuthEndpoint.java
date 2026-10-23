@@ -29,6 +29,7 @@ import com.auth0.jwt.exceptions.JWTVerificationException;
 
 import org.hl7.davinci.priorauth.App;
 import org.hl7.davinci.priorauth.Audit;
+import org.hl7.davinci.priorauth.LogRedactor;
 import org.hl7.davinci.priorauth.endpoint.Endpoint;
 import org.hl7.davinci.priorauth.PALogger;
 import org.hl7.davinci.priorauth.Audit.AuditEventOutcome;
@@ -118,8 +119,7 @@ public class AuthEndpoint {
             @RequestParam(name = "client_assertion_type", required = true) String clientAssertionType,
             @RequestParam(name = "client_assertion", required = true) String token) {
         App.setBaseUrl(Endpoint.getServiceBaseUrl(request));
-        final String requestQueryParams = "scope=" + scope + "&grant_type=" + grantType + "&client_assertion_type="
-                + clientAssertionType + "&client_assertion=" + token;
+        final String requestQueryParams = LogRedactor.tokenRequest(scope, grantType, clientAssertionType);
         logger.info("AuthEndpoint::token:" + requestQueryParams);
 
         // Check client_credentials

@@ -85,7 +85,7 @@ public class Database {
 
   public Database(String relativePath) {
     JDBC_STRING = JDBC_TYPE + relativePath + JDBC_FILE + JDBC_OPTIONS;
-    logger.info("JDBC: " + JDBC_STRING);
+    logger.info("Database::Database:initializing H2 database in " + relativePath);
     SQL_FILE = relativePath + PropertyProvider.getProperty("database_sql");
     try (Connection connection = getConnection()) {
       String sql = new String(Files.readAllBytes(Paths.get(SQL_FILE).toAbsolutePath()));
@@ -194,7 +194,7 @@ public class Database {
    * @return Bundle - the search result Bundle.
    */
   public Bundle search(Table table, Map<String, Object> constraintMap) {
-    logger.info("Database::search(" + table.value() + ", " + constraintMap.toString() + ")");
+    logger.info("Database::search(" + table.value() + ", " + LogRedactor.redactMap(constraintMap) + ")");
     AuditEventOutcome auditOutcome = AuditEventOutcome.SUCCESS;
     Bundle results = new Bundle();
     results.setType(BundleType.SEARCHSET);
@@ -205,14 +205,14 @@ public class Database {
       Collection<Map<String, Object>> maps = new HashSet<Map<String, Object>>();
       maps.add(constraintMap);
       PreparedStatement stmt = generateStatement(sql, maps, connection);
-      logger.fine("search query: " + stmt.toString());
+      logger.fine("search query: " + sql);
       ResultSet rs = stmt.executeQuery();
       int total = 0;
       while (rs.next()) {
         String id = rs.getString("id");
         String patientOut = rs.getString("patient");
         String json = rs.getString("resource");
-        logger.info("search: " + id + "/" + patientOut);
+        logger.info("search: " + id + "/" + LogRedactor.maskPatient(patientOut));
         Resource resource = (Resource) App.getFhirContext().newJsonParser().parseResource(json);
         resource.setId(id);
         BundleEntryComponent entry = new BundleEntryComponent();
@@ -239,7 +239,7 @@ public class Database {
    * @return IBaseResource - if the resource exists, otherwise null.
    */
   public IBaseResource read(Table table, Map<String, Object> constraintParams) {
-    logger.info("Database::read(" + table.value() + ", " + constraintParams.toString() + ")");
+    logger.info("Database::read(" + table.value() + ", " + LogRedactor.redactMap(constraintParams) + ")");
     AuditEventOutcome auditOutcome = AuditEventOutcome.SUCCESS;
     IBaseResource result = null;
     if (table != null && constraintParams != null) {
@@ -249,14 +249,14 @@ public class Database {
         Collection<Map<String, Object>> maps = new HashSet<Map<String, Object>>();
         maps.add(constraintParams);
         PreparedStatement stmt = generateStatement(sql, maps, connection);
-        logger.fine("read query: " + stmt.toString());
+        logger.fine("read query: " + sql);
         ResultSet rs = stmt.executeQuery();
 
         if (rs.next()) {
           String id = rs.getString("id");
           String json = rs.getString("resource");
           String patientOut = rs.getString("patient");
-          logger.info("read: " + id + "/" + patientOut);
+          logger.info("read: " + id + "/" + LogRedactor.maskPatient(patientOut));
           result = (Resource) App.getFhirContext().newJsonParser().parseResource(json);
         }
       } catch (SQLException e) {
@@ -278,7 +278,7 @@ public class Database {
    *         Empty list if none
    */
   public List<IBaseResource> readAll(Table table, Map<String, Object> constraintParams) {
-    logger.info("Database::readAll(" + table.value() + ", " + constraintParams.toString() + ")");
+    logger.info("Database::readAll(" + table.value() + ", " + LogRedactor.redactMap(constraintParams) + ")");
     AuditEventOutcome auditOutcome = AuditEventOutcome.SUCCESS;
     List<IBaseResource> results = new ArrayList<IBaseResource>();
     if (table != null && constraintParams != null) {
@@ -288,14 +288,14 @@ public class Database {
         Collection<Map<String, Object>> maps = new HashSet<Map<String, Object>>();
         maps.add(constraintParams);
         PreparedStatement stmt = generateStatement(sql, maps, connection);
-        logger.fine("read query: " + stmt.toString());
+        logger.fine("read query: " + sql);
         ResultSet rs = stmt.executeQuery();
 
         while (rs.next()) {
           String id = rs.getString("id");
           String json = rs.getString("resource");
           String patientOut = rs.getString("patient");
-          logger.info("read: " + id + "/" + patientOut);
+          logger.info("read: " + id + "/" + LogRedactor.maskPatient(patientOut));
           results.add((Resource) App.getFhirContext().newJsonParser().parseResource(json));
         }
       } catch (SQLException e) {
@@ -340,7 +340,7 @@ public class Database {
    * @return the specified column of the database
    */
   public String readString(Table table, Map<String, Object> constraintParams, String column) {
-    logger.info("Database::read(" + table.value() + ", " + constraintParams.toString() + ", " + column + ")");
+    logger.info("Database::read(" + table.value() + ", " + LogRedactor.redactMap(constraintParams) + ", " + column + ")");
     if (table != null && constraintParams != null && column != null) {
       try (Connection connection = getConnection()) {
         // TODO: fix this so it does not insert a string (column) into the SQL
@@ -349,7 +349,7 @@ public class Database {
         Collection<Map<String, Object>> maps = new HashSet<Map<String, Object>>();
         maps.add(constraintParams);
         PreparedStatement stmt = generateStatement(sql, maps, connection);
-        logger.fine("read query: " + stmt.toString());
+        logger.fine("read query: " + sql);
         ResultSet rs = stmt.executeQuery();
 
         if (rs.next()) {
@@ -374,7 +374,7 @@ public class Database {
    * @return boolean - whether or not the resource was written.
    */
   public boolean write(Table table, Map<String, Object> data) {
-    logger.info("Database::write(" + table.value() + ", " + printMap(data) + ")");
+    logger.info("Database::write(" + table.value() + ", " + LogRedactor.redactMap(data) + ")");
     AuditEventOutcome auditOutcome = AuditEventOutcome.SUCCESS;
     boolean result = false;
     if (data != null) {
@@ -390,7 +390,7 @@ public class Database {
         maps.add(data);
         PreparedStatement stmt = generateStatement(sql, maps, connection);
         result = stmt.execute();
-        logger.fine(stmt.toString());
+        logger.fine(sql);
         result = true;
       } catch (JdbcSQLIntegrityConstraintViolationException e) {
         auditOutcome = AuditEventOutcome.SERIOUS_FAILURE;
@@ -417,8 +417,8 @@ public class Database {
    * @return boolean - whether or not the update was successful
    */
   public boolean update(Table table, Map<String, Object> constraintParams, Map<String, Object> data) {
-    logger.info("Database::update(" + table.value() + ", WHERE " + constraintParams.toString() + ", SET"
-        + data.toString() + ")");
+    logger.info("Database::update(" + table.value() + ", WHERE " + LogRedactor.redactMap(constraintParams) + ", SET"
+        + LogRedactor.redactMap(data) + ")");
     AuditEventOutcome auditOutcome = AuditEventOutcome.SUCCESS;
     boolean result = false;
     String sql = "UPDATE " + table.value() + " SET " + generateClause(data, SET_CONCAT)
@@ -431,7 +431,7 @@ public class Database {
         PreparedStatement stmt = generateStatement(sql, maps, connection);
         stmt.execute();
         result = stmt.getUpdateCount() > 0 ? true : false;
-        logger.fine(stmt.toString());
+        logger.fine(sql);
       } catch (SQLException e) {
         auditOutcome = AuditEventOutcome.SERIOUS_FAILURE;
         logger.log(Level.SEVERE, "Database::runQuery:SQLException", e);
@@ -517,7 +517,7 @@ public class Database {
    * @return boolean - whether or not the resource was deleted.
    */
   public boolean delete(Table table, String id, String patient) {
-    logger.info("Database::delete(" + table.value() + ", " + id + ", " + patient + ")");
+    logger.info("Database::delete(" + table.value() + ", " + id + ", " + LogRedactor.maskPatient(patient) + ")");
     AuditEventOutcome auditOutcome = AuditEventOutcome.SUCCESS;
     boolean result = false;
     if (table != null && id != null) {
@@ -529,7 +529,6 @@ public class Database {
 
         stmt.execute();
         result = stmt.getUpdateCount() > 0 ? true : false;
-        logger.info("Delete Statement: " + stmt.toString());
         logger.info("Update Count: " + stmt.getUpdateCount());
       } catch (SQLException e) {
         auditOutcome = AuditEventOutcome.SERIOUS_FAILURE;
@@ -625,23 +624,6 @@ public class Database {
   private String setColumns(Set<String> keys) {
     Optional<String> reducedArr = Arrays.stream(keys.toArray(new String[0])).reduce((str1, str2) -> str1 + ", " + str2);
     return reducedArr.get();
-  }
-
-  private String printMap(Map<String, Object> data) {
-    StringBuilder string = new StringBuilder("{ ");
-
-    for (Map.Entry<String, Object> entry : data.entrySet()) {
-      if (entry.getKey().equals("resource")) {
-        string.append("resource, ");
-      } else if (entry.getKey().equals("organization")) {
-        string.append("organization, ");
-      } else {
-        string.append(entry.getValue() != null ? entry.getValue().toString() : "null, ");
-      }
-    }
-
-    string.append(" }");
-    return string.toString();
   }
 
 }

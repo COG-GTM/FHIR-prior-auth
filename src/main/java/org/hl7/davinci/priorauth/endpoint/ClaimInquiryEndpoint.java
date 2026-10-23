@@ -5,6 +5,7 @@ import javax.servlet.http.HttpServletRequest;
 import org.hl7.davinci.priorauth.App;
 import org.hl7.davinci.priorauth.Audit;
 import org.hl7.davinci.priorauth.FhirUtils;
+import org.hl7.davinci.priorauth.LogRedactor;
 import org.hl7.davinci.priorauth.PALogger;
 import org.hl7.davinci.priorauth.Audit.AuditEventOutcome;
 import org.hl7.davinci.priorauth.Audit.AuditEventType;
@@ -158,7 +159,7 @@ public class ClaimInquiryEndpoint {
 
         // Search DB for all claims for patient then filter to where identifiers match
         List<IBaseResource> claims = App.getDB().readAll(Table.CLAIM, Collections.singletonMap("patient", patient));
-        logger.fine("Found " + claims.size() + " claims for Patient " + patient + " (Inquiry bundle: "
+        logger.fine("Found " + claims.size() + " claims for Patient " + LogRedactor.maskPatient(patient) + " (Inquiry bundle: "
                 + requestBundle.getId() + ")");
         for (IBaseResource resource : claims) {
             Claim claim = (Claim) resource;
@@ -169,7 +170,7 @@ public class ClaimInquiryEndpoint {
                 Map<String, Object> constraintMap = new HashMap<>();
                 constraintMap.put("patient", patient);
                 constraintMap.put("claimId", claimId);
-                logger.fine("Found matching Claim. Getting ClaimResponse with patient: " + patient + " and claimId: "
+                logger.fine("Found matching Claim. Getting ClaimResponse with patient: " + LogRedactor.maskPatient(patient) + " and claimId: "
                         + claimId);
                 return (Bundle) App.getDB().read(Table.CLAIM_RESPONSE, constraintMap);
             }
