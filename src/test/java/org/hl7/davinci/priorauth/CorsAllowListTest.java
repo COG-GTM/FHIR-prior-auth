@@ -30,10 +30,11 @@ import org.springframework.web.context.WebApplicationContext;
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT, properties = {
     "server.servlet.contextPath=/fhir",
-    "priorauth.cors.allowed-origins=" + CorsAllowListTest.ALLOWED_ORIGIN })
+    "priorauth.cors.allowed-origins=" + CorsAllowListTest.ALLOWED_ORIGIN + ", " + CorsAllowListTest.SECOND_ALLOWED_ORIGIN })
 public class CorsAllowListTest {
 
   static final String ALLOWED_ORIGIN = "https://allowed.example.org";
+  static final String SECOND_ALLOWED_ORIGIN = "https://second.example.org";
   private static final String DISALLOWED_ORIGIN = "https://evil.example.com";
   private static final String ACAO = "Access-Control-Allow-Origin";
 
@@ -94,6 +95,15 @@ public class CorsAllowListTest {
   @Test
   public void websocketHandshakeAcceptsAllowedOrigin() throws Exception {
     Assert.assertEquals(101, websocketHandshakeStatus(ALLOWED_ORIGIN));
+  }
+
+  @Test
+  public void secondAllowListedOriginIsAcceptedForRestAndWebSocket() throws Exception {
+    mockMvc.perform(MockMvcRequestBuilders.get("/metadata").header("Accept", "application/fhir+json")
+        .header("Origin", SECOND_ALLOWED_ORIGIN))
+        .andExpect(MockMvcResultMatchers.status().isOk())
+        .andExpect(MockMvcResultMatchers.header().string(ACAO, SECOND_ALLOWED_ORIGIN));
+    Assert.assertEquals(101, websocketHandshakeStatus(SECOND_ALLOWED_ORIGIN));
   }
 
   private int websocketHandshakeStatus(String origin) throws Exception {

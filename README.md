@@ -130,7 +130,9 @@ $ keytool -genkey -alias pas -keystore pas_keystore.p12 -keyalg RSA -storetype P
 $ SERVER_SSL_KEY_STORE=file:pas_keystore.p12 SERVER_SSL_KEY_STORE_PASSWORD=<password> ./gradlew bootRun
 ```
 
-For local development over plain HTTP use `SPRING_PROFILES_ACTIVE=dev ./gradlew bootRun`.
+With `docker-compose.yml` / `docker-compose-porter.yml`, place the keystore at `./certs/pas_keystore.p12` (or point `SERVER_SSL_KEY_STORE_DIR` at the host directory holding it). The directory is mounted read-only at `/run/secrets/pas` and `SERVER_SSL_KEY_STORE` defaults to `file:/run/secrets/pas/pas_keystore.p12`; supply `SERVER_SSL_KEY_STORE_PASSWORD` from the host environment.
+
+For local development over plain HTTP use `SPRING_PROFILES_ACTIVE=dev ./gradlew bootRun`. `docker-compose-dev.yml` uses the `dev` profile and binds its ports to `127.0.0.1` only.
 
 ### Server to Server OAuth
 

@@ -137,9 +137,9 @@ services:
       - TOKEN_BASE_URI=http://localhost:9015
       - SPRING_PROFILES_ACTIVE=dev
       - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3005,http://localhost:9090
-    ports: # Port binding to host from docker container
-      - "9015:9015" # Bind port 3000 of host to 3000 of container
-      - "9016:9016"   
+    ports: # dev profile serves plain HTTP, so only bind to the loopback interface
+      - "127.0.0.1:9015:9015"
+      - "127.0.0.1:9016:9016"
     volumes:
       - pas_dev_prior-auth-sync:/prior-auth:nocopy #  nocopy is important
       - pas_dev_prior-auth-gradle:/prior-auth/.gradle

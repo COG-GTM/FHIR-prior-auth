@@ -65,7 +65,8 @@ services:
     environment:
       - TOKEN_BASE_URI=${TOKEN_BASE_URI:-https://localhost:9015}
       # TLS keystore and CORS/WebSocket allow-list are supplied from the host environment (see README).
-      - SERVER_SSL_KEY_STORE
+      # The keystore is read from ${SERVER_SSL_KEY_STORE_DIR:-./certs} on the host, mounted read-only.
+      - SERVER_SSL_KEY_STORE=${SERVER_SSL_KEY_STORE:-file:/run/secrets/pas/pas_keystore.p12}
       - SERVER_SSL_KEY_STORE_PASSWORD
       - SERVER_SSL_KEY_ALIAS
       - CORS_ALLOWED_ORIGINS
@@ -73,6 +74,7 @@ services:
       - "9015:9015" # Bind port 3000 of host to 3000 of container
     volumes:
       - prior-auth-data:/prior-auth/databaseData
+      - ${SERVER_SSL_KEY_STORE_DIR:-./certs}:/run/secrets/pas:ro
 
 
   prior-auth-client: # Name of our service
