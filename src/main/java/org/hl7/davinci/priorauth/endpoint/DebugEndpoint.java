@@ -109,6 +109,12 @@ public class DebugEndpoint {
       return new ResponseEntity<>("Patient resource not found in " + id, HttpStatus.BAD_REQUEST);
     }
 
+    if (App.getDB().read(Table.CLAIM, constraintMap) == null || FhirUtils.isCancelled(Table.CLAIM, id)) {
+      String description = "Attempted to release claim " + id + " but no active claim exists";
+      Audit.createAuditEvent(AuditEventType.REST, AuditEventAction.E, AuditEventOutcome.MINOR_FAILURE, "Claim/" + id, request, description);
+      return new ResponseEntity<>("Active claim not found for " + id, HttpStatus.BAD_REQUEST);
+    }
+
     new UpdateClaimTask((Bundle)bundle, id, patient).run();
 
     String description = "Released pended claim " + id + " in debug mode by client " + AuthUtils.getClientId(request);
