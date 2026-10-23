@@ -398,7 +398,8 @@ public class SubscriptionEndpointTest {
         MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.post("/Subscription")
                 .content(subscriptionPended).header("Content-Type", "application/fhir+json")
                 .header("Access-Control-Request-Method", "POST").header("Origin", "http://localhost:" + port);
-        mockMvc.perform(requestBuilder).andExpect(unauthorized);
+        mockMvc.perform(requestBuilder).andExpect(unauthorized)
+                .andExpect(MockMvcResultMatchers.content().contentTypeCompatibleWith("application/fhir+json"));
     }
 
     @Test

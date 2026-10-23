@@ -23,6 +23,7 @@ import org.hl7.fhir.r4.model.AuditEvent.AuditEventAction;
 import org.hl7.fhir.r4.model.OperationOutcome.IssueSeverity;
 import org.hl7.fhir.r4.model.OperationOutcome.IssueType;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 import com.google.common.net.HttpHeaders;
@@ -159,7 +160,10 @@ public class Endpoint {
      */
     public static ResponseEntity<String> unauthorized(RequestType requestType) {
         OperationOutcome outcome = FhirUtils.buildOutcome(IssueSeverity.ERROR, IssueType.SECURITY, UNAUTHORIZED_MSG);
-        return new ResponseEntity<>(FhirUtils.getFormattedData(outcome, requestType), HttpStatus.UNAUTHORIZED);
+        MediaType contentType = MediaType
+                .parseMediaType(requestType == RequestType.JSON ? "application/fhir+json" : "application/fhir+xml");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).contentType(contentType)
+                .body(FhirUtils.getFormattedData(outcome, requestType));
     }
 
     /**
