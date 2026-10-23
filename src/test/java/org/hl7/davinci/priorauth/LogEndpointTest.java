@@ -9,19 +9,21 @@ import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.hamcrest.Matchers;
 import org.hl7.davinci.priorauth.Database.Table;
 import org.hl7.davinci.priorauth.authorization.AuthUtils;
+import org.hl7.davinci.priorauth.endpoint.LogEndpoint;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.hamcrest.Matchers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultMatcher;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -31,13 +33,16 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 @RunWith(SpringRunner.class)
-@TestPropertySource(properties = "server.servlet.contextPath=/fhir")
+@TestPropertySource(properties = { "server.servlet.contextPath=/fhir",
+    "priorauth.log.admin-token=" + LogEndpointTest.LOG_ADMIN_TOKEN })
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 public class LogEndpointTest {
 
+  static final String LOG_ADMIN_TOKEN = "log-endpoint-test-admin-token";
   private static final String CLIENT_ID = "log-endpoint-test-client";
   private static final String CLIENT_TOKEN = "log-endpoint-test-token";
   private static final String ORIGIN = "http://evil.example.com";
+  private static final String LOG_MARKER = "LogEndpointTest marker";
 
   @Autowired
   private WebApplicationContext wac;
@@ -45,8 +50,6 @@ public class LogEndpointTest {
   private static ResultMatcher ok = MockMvcResultMatchers.status().isOk();
   private static ResultMatcher notFound = MockMvcResultMatchers.status().isNotFound();
   private static ResultMatcher unauthorized = MockMvcResultMatchers.status().isUnauthorized();
-  private static final String LOG_MARKER = "LogEndpointTest marker";
-
   private static ResultMatcher noCors = MockMvcResultMatchers.header().doesNotExist("Access-Control-Allow-Origin");
 
   @BeforeClass
@@ -72,21 +75,22 @@ public class LogEndpointTest {
     App.getDB().delete(Table.CLIENT, CLIENT_ID);
   }
 
-  private static String adminToken() throws Exception {
-    Field field = AuthUtils.class.getDeclaredField("ADMIN_TOKEN");
-    field.setAccessible(true);
-    return (String) field.get(null);
-  }
-
   @After
-  public void resetDebugMode() throws Exception {
+  public void reset() throws Exception {
     setDebugMode(false);
+    ReflectionTestUtils.setField(wac.getBean(LogEndpoint.class), "adminToken", LOG_ADMIN_TOKEN);
   }
 
   private static void setDebugMode(boolean enabled) throws Exception {
     Field field = App.class.getDeclaredField("debugMode");
     field.setAccessible(true);
     field.setBoolean(null, enabled);
+  }
+
+  private static String sharedDefaultToken() throws Exception {
+    Field field = AuthUtils.class.getDeclaredField("ADMIN_TOKEN");
+    field.setAccessible(true);
+    return (String) field.get(null);
   }
 
   private MockMvc mockMvc() {
@@ -97,6 +101,10 @@ public class LogEndpointTest {
     return MockMvcRequestBuilders.get("/Log").header("Origin", ORIGIN);
   }
 
+  private MockHttpServletRequestBuilder getLog(String token) {
+    return getLog().header("Authorization", "Bearer " + token);
+  }
+
   @Test
   public void unauthenticatedGetLogIsRejected() throws Exception {
     mockMvc().perform(getLog()).andExpect(notFound).andExpect(noCors);
@@ -104,8 +112,15 @@ public class LogEndpointTest {
 
   @Test
   public void adminGetLogOutsideDebugModeIsRejected() throws Exception {
-    mockMvc().perform(getLog().header("Authorization", "Bearer " + adminToken())).andExpect(notFound)
-        .andExpect(noCors);
+    mockMvc().perform(getLog(LOG_ADMIN_TOKEN)).andExpect(notFound).andExpect(noCors);
+  }
+
+  @Test
+  public void getLogWithoutConfiguredAdminTokenIsRejected() throws Exception {
+    setDebugMode(true);
+    ReflectionTestUtils.setField(wac.getBean(LogEndpoint.class), "adminToken", "");
+    mockMvc().perform(getLog()).andExpect(notFound).andExpect(noCors);
+    mockMvc().perform(getLog("")).andExpect(notFound).andExpect(noCors);
   }
 
   @Test
@@ -117,21 +132,25 @@ public class LogEndpointTest {
   @Test
   public void invalidTokenGetLogInDebugModeIsRejected() throws Exception {
     setDebugMode(true);
-    mockMvc().perform(getLog().header("Authorization", "Bearer not-a-real-token")).andExpect(unauthorized)
-        .andExpect(noCors);
+    mockMvc().perform(getLog("not-a-real-token")).andExpect(unauthorized).andExpect(noCors);
   }
 
   @Test
-  public void nonAdminClientTokenGetLogInDebugModeIsRejected() throws Exception {
+  public void clientTokenGetLogInDebugModeIsRejected() throws Exception {
     setDebugMode(true);
-    mockMvc().perform(getLog().header("Authorization", "Bearer " + CLIENT_TOKEN)).andExpect(unauthorized)
-        .andExpect(noCors);
+    mockMvc().perform(getLog(CLIENT_TOKEN)).andExpect(unauthorized).andExpect(noCors);
+  }
+
+  @Test
+  public void sharedDefaultClientTokenGetLogInDebugModeIsRejected() throws Exception {
+    setDebugMode(true);
+    mockMvc().perform(getLog(sharedDefaultToken())).andExpect(unauthorized).andExpect(noCors);
   }
 
   @Test
   public void adminGetLogInDebugModeSucceedsWithoutCorsOrCaching() throws Exception {
     setDebugMode(true);
-    mockMvc().perform(getLog().header("Authorization", "Bearer " + adminToken())).andExpect(ok).andExpect(noCors)
+    mockMvc().perform(getLog(LOG_ADMIN_TOKEN)).andExpect(ok).andExpect(noCors)
         .andExpect(MockMvcResultMatchers.header().string("Cache-Control", "no-store"))
         .andExpect(MockMvcResultMatchers.content().string(Matchers.containsString(LOG_MARKER)));
   }
