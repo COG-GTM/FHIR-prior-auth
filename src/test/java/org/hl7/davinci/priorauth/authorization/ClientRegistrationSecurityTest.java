@@ -35,6 +35,9 @@ public class ClientRegistrationSecurityTest {
     ClientRegistrationSecurity.validateJwksUrl("https://8.8.8.8/jwks");
     ClientRegistrationSecurity.validateJwksUrl("https://8.8.8.8:8443/jwks");
     ClientRegistrationSecurity.validateJwksUrl("https://[2606:4700:4700::1111]/jwks");
+    ClientRegistrationSecurity.validateJwksUrl("https://8.8.8.8?key=ops@example.org");
+    ClientRegistrationSecurity.validateJwksUrl("https://8.8.8.8#ops@example.org");
+    ClientRegistrationSecurity.validateJwksUrl("https://8.8.8.8/jwks?contact=ops@example.org");
   }
 
   @Test

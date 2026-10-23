@@ -84,8 +84,9 @@ public final class ClientRegistrationSecurity {
         if (!url.isHttps()) throw new IllegalArgumentException("jwks_url must use https");
         String raw = jwksUrl.trim();
         int authorityStart = raw.indexOf("://") + 3;
-        int authorityEnd = raw.indexOf('/', authorityStart);
-        String authority = raw.substring(authorityStart, authorityEnd < 0 ? raw.length() : authorityEnd);
+        int authorityEnd = authorityStart;
+        while (authorityEnd < raw.length() && "/?#\\".indexOf(raw.charAt(authorityEnd)) < 0) authorityEnd++;
+        String authority = raw.substring(authorityStart, authorityEnd);
         if (!url.username().isEmpty() || !url.password().isEmpty() || authority.contains("@"))
             throw new IllegalArgumentException("jwks_url must not contain user info");
 
