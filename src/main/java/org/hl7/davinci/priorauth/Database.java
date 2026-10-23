@@ -56,13 +56,19 @@ public class Database {
   private static final String SET_CONCAT = ", ";
   private static final String WHERE_CONCAT = " AND ";
 
+  public static final String DB_FILE_PASSWORD_ENV = "PRIOR_AUTH_DB_FILE_PASSWORD";
+  public static final String DB_FILE_ENV = "PRIOR_AUTH_DB_FILE";
+
+  // CIPHER=AES encrypts the database file at rest using the file password from
+  // PRIOR_AUTH_DB_FILE_PASSWORD.
   // DB_CLOSE_DELAY=-1 maintains the DB in memory after all connections closed
   // (so that we don't lose everything between a connection closing and the next
   // being opened)
   private static final String JDBC_TYPE = "jdbc:h2:";
   private static final String JDBC_FILE = "databaseData/database";
-  private static final String JDBC_OPTIONS = ";DB_CLOSE_DELAY=-1";
+  private static final String JDBC_OPTIONS = ";CIPHER=AES;DB_CLOSE_DELAY=-1";
   private String JDBC_STRING;
+  private String JDBC_PASSWORD;
 
   static {
     try {
@@ -73,7 +79,7 @@ public class Database {
   }
 
   private Connection getConnection() throws SQLException {
-    Connection connection = DriverManager.getConnection(JDBC_STRING);
+    Connection connection = DriverManager.getConnection(JDBC_STRING, "", JDBC_PASSWORD);
     connection.setAutoCommit(true);
     return connection;
   }
@@ -84,7 +90,10 @@ public class Database {
   }
 
   public Database(String relativePath) {
-    JDBC_STRING = JDBC_TYPE + relativePath + JDBC_FILE + JDBC_OPTIONS;
+    String dbFile = System.getenv(DB_FILE_ENV);
+    JDBC_STRING = JDBC_TYPE + relativePath + (dbFile == null || dbFile.isBlank() ? JDBC_FILE : dbFile) + JDBC_OPTIONS;
+    // H2 expects "<filePassword> <userPassword>" when CIPHER is set
+    JDBC_PASSWORD = resolveFilePassword(System.getenv(DB_FILE_PASSWORD_ENV)) + " ";
     logger.info("JDBC: " + JDBC_STRING);
     SQL_FILE = relativePath + PropertyProvider.getProperty("database_sql");
     try (Connection connection = getConnection()) {
@@ -99,6 +108,21 @@ public class Database {
     } catch (IOException e) {
       logger.log(Level.SEVERE, "Database::Database:IOException", e);
     }
+  }
+
+  /**
+   * Validate the H2 file encryption password.
+   *
+   * @param filePassword - value of the PRIOR_AUTH_DB_FILE_PASSWORD environment variable
+   * @return the file password
+   * @throws IllegalStateException if the password is missing or contains whitespace
+   */
+  static String resolveFilePassword(String filePassword) {
+    if (filePassword == null || filePassword.isBlank())
+      throw new IllegalStateException(DB_FILE_PASSWORD_ENV + " must be set to encrypt the database at rest");
+    if (filePassword.chars().anyMatch(Character::isWhitespace))
+      throw new IllegalStateException(DB_FILE_PASSWORD_ENV + " must not contain whitespace");
+    return filePassword;
   }
 
   public String generateAndRunQuery(Table table) {
