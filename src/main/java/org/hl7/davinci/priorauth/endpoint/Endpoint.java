@@ -14,6 +14,7 @@ import org.hl7.davinci.priorauth.PALogger;
 import org.hl7.davinci.priorauth.Audit.AuditEventOutcome;
 import org.hl7.davinci.priorauth.Audit.AuditEventType;
 import org.hl7.davinci.priorauth.Database.Table;
+import org.hl7.davinci.priorauth.authorization.AuthUtils;
 import org.hl7.fhir.instance.model.api.IBaseResource;
 import org.hl7.fhir.r4.model.Bundle;
 import org.hl7.fhir.r4.model.Claim;
@@ -22,6 +23,7 @@ import org.hl7.fhir.r4.model.AuditEvent.AuditEventAction;
 import org.hl7.fhir.r4.model.OperationOutcome.IssueSeverity;
 import org.hl7.fhir.r4.model.OperationOutcome.IssueType;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 import com.google.common.net.HttpHeaders;
@@ -37,7 +39,27 @@ public class Endpoint {
     static String REQUIRES_ID = "Instance ID is required: DELETE {resourceType}?identifier=";
     static String REQUIRES_PATIENT = "Patient Identifier is required: DELETE {resourceType}?patient.identifier=";
     static String DELETED_MSG = "Deleted resource and all related and referenced resources.";
+    static String INVALID_TOKEN = "{ \"error\": \"Invalid access token. Make sure to use Authorization: Bearer (token)\" }";
     static String SQL_ERROR = "Unable to perform operation. SQL error while processing. Check logs for more details.";
+
+    /**
+     * Reject a read without a valid bearer access token, recording the attempt in the Audit table.
+     *
+     * @param table   - the Table being read.
+     * @param id      - the requested resource identifier (may be null for searches).
+     * @return a 401 response if the token is missing or invalid, otherwise null
+     */
+    static ResponseEntity<String> rejectUnauthenticatedRead(Table table, Object id, HttpServletRequest request) {
+        if (AuthUtils.validateAccessToken(request))
+            return null;
+        App.setBaseUrl(Endpoint.getServiceBaseUrl(request));
+        logger.warning("Endpoint::read:invalid or missing access token");
+        String description = "Attempted to read " + table.value() + " without a valid access token";
+        Audit.createAuditEvent(AuditEventType.QUERY, AuditEventAction.R, AuditEventOutcome.MINOR_FAILURE,
+                table.value() + "/" + id, request, description);
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).contentType(MediaType.APPLICATION_JSON)
+                .body(INVALID_TOKEN);
+    }
 
     /**
      * Read a resource from an endpoint in either JSON or XML
@@ -52,6 +74,9 @@ public class Endpoint {
         logger.info("GET /" + table.value() + ":" + constraintMap.toString() + " fhir+" + requestType.name());
         App.setBaseUrl(Endpoint.getServiceBaseUrl(request));
         String referenceUrl = table.value() + "/" + constraintMap.get("id");
+        ResponseEntity<String> unauthenticated = rejectUnauthenticatedRead(table, constraintMap.get("id"), request);
+        if (unauthenticated != null)
+            return unauthenticated;
         if (!constraintMap.containsKey("patient")) {
             logger.warning("Endpoint::read:patient null");
             String description = "Attempted to read " + table.value() + " but is unauthorized";

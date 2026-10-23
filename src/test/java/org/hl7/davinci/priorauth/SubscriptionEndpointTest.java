@@ -15,6 +15,7 @@ import org.hl7.fhir.r4.model.OperationOutcome.OperationOutcomeIssueComponent;
 import org.hl7.fhir.r4.model.Subscription.SubscriptionStatus;
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.hl7.davinci.priorauth.Audit.AuditEventOutcome;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -58,9 +59,14 @@ public class SubscriptionEndpointTest {
     private static String subscriptionPended;
     private static String subscriptionGranted;
 
+    private static String accessToken;
+    private static String clientId;
+
     @BeforeClass
     public static void setup() throws IOException {
         App.initializeAppDB();
+        accessToken = AuthTestHelper.newToken();
+        clientId = AuthTestHelper.registerClient(accessToken);
 
         Path modulesFolder = Paths.get("src/test/resources");
         Path fixture = modulesFolder.resolve("subscription-resthook.json");
@@ -126,6 +132,7 @@ public class SubscriptionEndpointTest {
 
     @AfterClass
     public static void cleanup() {
+        AuthTestHelper.deleteClient(clientId);
         App.getDB().delete(Table.CLAIM);
         App.getDB().delete(Table.CLAIM_RESPONSE);
         App.getDB().delete(Table.SUBSCRIPTION);
@@ -270,7 +277,8 @@ public class SubscriptionEndpointTest {
         MockMvc mockMvc = builder.build();
         MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders
                 .get("/Subscription?patient.identifier=pat013").header("Accept", "application/fhir+json")
-                .header("Access-Control-Request-Method", "GET").header("Origin", "http://localhost:" + port);
+                .header("Access-Control-Request-Method", "GET")
+                .header("Authorization", "Bearer " + accessToken).header("Origin", "http://localhost:" + port);
 
         // Test the response has CORS headers and returned status 200
         MvcResult mvcresult = mockMvc.perform(requestBuilder).andExpect(ok).andExpect(cors).andReturn();
@@ -292,7 +300,8 @@ public class SubscriptionEndpointTest {
         MockMvc mockMvc = builder.build();
         MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders
                 .get("/Subscription?patient.identifier=pat013").header("Accept", "application/fhir+xml")
-                .header("Access-Control-Request-Method", "GET").header("Origin", "http://localhost:" + port);
+                .header("Access-Control-Request-Method", "GET")
+                .header("Authorization", "Bearer " + accessToken).header("Origin", "http://localhost:" + port);
 
         // Test the response has CORS headers and returned status 200
         MvcResult mvcresult = mockMvc.perform(requestBuilder).andExpect(ok).andExpect(cors).andReturn();
@@ -324,6 +333,7 @@ public class SubscriptionEndpointTest {
         MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders
                 .get("/Subscription?identifier=pended&patient.identifier=pat013")
                 .header("Accept", "application/fhir+json").header("Access-Control-Request-Method", "GET")
+                .header("Authorization", "Bearer " + accessToken)
                 .header("Origin", "http://localhost:" + port);
 
         // Test the response has CORS headers and returned status 200
@@ -347,6 +357,7 @@ public class SubscriptionEndpointTest {
         MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders
                 .get("/Subscription?identifier=pended&patient.identifier=pat013")
                 .header("Accept", "application/fhir+xml").header("Access-Control-Request-Method", "GET")
+                .header("Authorization", "Bearer " + accessToken)
                 .header("Origin", "http://localhost:" + port);
 
         // Test the response has CORS headers and returned status 200
@@ -370,6 +381,7 @@ public class SubscriptionEndpointTest {
         MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders
                 .get("/Subscription?identifier=ClaimResponseThatDoesNotExist&patient.identifier=45")
                 .header("Accept", "application/fhir+json").header("Access-Control-Request-Method", "GET")
+                .header("Authorization", "Bearer " + accessToken)
                 .header("Origin", "http://localhost:" + port);
 
         // Test the response has CORS headers and returned status 200
@@ -382,5 +394,28 @@ public class SubscriptionEndpointTest {
 
         // Validate the bundle is empty
         Assert.assertEquals(0, bundle.getTotal());
+    }
+
+    @Test
+    public void searchSubscriptionsWithoutTokenIsUnauthorized() throws Exception {
+        MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
+        MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders
+                .get("/Subscription?patient.identifier=pat013").header("Accept", "application/fhir+json")
+                .header("Access-Control-Request-Method", "GET").header("Origin", "http://localhost:" + port);
+
+        mockMvc.perform(requestBuilder).andExpect(MockMvcResultMatchers.status().isUnauthorized()).andExpect(cors);
+    }
+
+    @Test
+    public void getSubscriptionWithoutTokenIsUnauthorizedAndAudited() throws Exception {
+        MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
+        MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders
+                .get("/Subscription?identifier=pended&patient.identifier=pat013").header("Accept", "application/fhir+json")
+                .header("Access-Control-Request-Method", "GET").header("Authorization", "Bearer not-a-valid-token")
+                .header("Origin", "http://localhost:" + port);
+
+        mockMvc.perform(requestBuilder).andExpect(MockMvcResultMatchers.status().isUnauthorized()).andExpect(cors);
+        Assert.assertEquals(AuditEventOutcome.MINOR_FAILURE.toCode(),
+                AuthTestHelper.latestAuditOutcome("Subscription/pended"));
     }
 }

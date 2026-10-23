@@ -47,9 +47,14 @@ public class BundleEndpointTest {
   private static ResultMatcher ok = MockMvcResultMatchers.status().isOk();
   private static ResultMatcher notFound = MockMvcResultMatchers.status().isNotFound();
 
+  private static String accessToken;
+  private static String clientId;
+
   @BeforeClass
   public static void setup() throws FileNotFoundException {
     App.initializeAppDB();
+    accessToken = AuthTestHelper.newToken();
+    clientId = AuthTestHelper.registerClient(accessToken);
 
     // Create a single test Bundle
     Path modulesFolder = Paths.get("src/test/resources");
@@ -65,6 +70,7 @@ public class BundleEndpointTest {
 
   @AfterClass
   public static void cleanup() {
+    AuthTestHelper.deleteClient(clientId);
     App.getDB().delete(Table.BUNDLE, "minimal", "1");
   }
 
@@ -75,6 +81,7 @@ public class BundleEndpointTest {
     MockMvc mockMvc = builder.build();
     MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.get("/Bundle?patient.identifier=1")
         .header("Accept", "application/fhir+json").header("Access-Control-Request-Method", "GET")
+        .header("Authorization", "Bearer " + accessToken)
         .header("Origin", "http://localhost:" + port);
 
     // Test the response has CORS headers and returned status 200
@@ -97,6 +104,7 @@ public class BundleEndpointTest {
     MockMvc mockMvc = builder.build();
     MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.get("/Bundle?patient.identifier=1")
         .header("Accept", "application/fhir+xml").header("Access-Control-Request-Method", "GET")
+        .header("Authorization", "Bearer " + accessToken)
         .header("Origin", "http://localhost:" + port);
 
     // Test the response has CORS headers and returned status 200
@@ -128,7 +136,8 @@ public class BundleEndpointTest {
     MockMvc mockMvc = builder.build();
     MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders
         .get("/Bundle?identifier=minimal&patient.identifier=1").header("Accept", "application/fhir+json")
-        .header("Access-Control-Request-Method", "GET").header("Origin", "http://localhost:" + port);
+        .header("Access-Control-Request-Method", "GET")
+        .header("Authorization", "Bearer " + accessToken).header("Origin", "http://localhost:" + port);
 
     // Test the response has CORS headers and returned status 200
     MvcResult mvcresult = mockMvc.perform(requestBuilder).andExpect(ok).andExpect(cors).andReturn();
@@ -150,7 +159,8 @@ public class BundleEndpointTest {
     MockMvc mockMvc = builder.build();
     MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders
         .get("/Bundle?identifier=minimal&patient.identifier=1").header("Accept", "application/fhir+xml")
-        .header("Access-Control-Request-Method", "GET").header("Origin", "http://localhost:" + port);
+        .header("Access-Control-Request-Method", "GET")
+        .header("Authorization", "Bearer " + accessToken).header("Origin", "http://localhost:" + port);
 
     // Test the response has CORS headers and returned status 200
     MvcResult mvcresult = mockMvc.perform(requestBuilder).andExpect(ok).andExpect(cors).andReturn();
@@ -173,10 +183,20 @@ public class BundleEndpointTest {
     MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders
         .get("/Bundle?identifier=BundleThatDoesNotExist&patient.identifier=45")
         .header("Accept", "application/fhir+json").header("Access-Control-Request-Method", "GET")
+        .header("Authorization", "Bearer " + accessToken)
         .header("Origin", "http://localhost:" + port);
 
     // Test the response has CORS headers and returned status 404
     mockMvc.perform(requestBuilder).andExpect(notFound).andExpect(cors);
   }
 
+  @Test
+  public void searchBundlesWithoutTokenIsUnauthorized() throws Exception {
+    MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
+    MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.get("/Bundle?patient.identifier=1")
+        .header("Accept", "application/fhir+json").header("Access-Control-Request-Method", "GET")
+        .header("Origin", "http://localhost:" + port);
+
+    mockMvc.perform(requestBuilder).andExpect(MockMvcResultMatchers.status().isUnauthorized()).andExpect(cors);
+  }
 }

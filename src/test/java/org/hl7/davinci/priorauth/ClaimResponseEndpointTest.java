@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 import org.springframework.test.web.servlet.setup.DefaultMockMvcBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import org.hl7.davinci.priorauth.Audit.AuditEventOutcome;
 import org.hl7.davinci.priorauth.Database.Table;
 import org.hl7.fhir.r4.model.Bundle;
 import org.hl7.fhir.r4.model.Claim;
@@ -47,10 +48,16 @@ public class ClaimResponseEndpointTest {
   private static ResultMatcher cors = MockMvcResultMatchers.header().string("Access-Control-Allow-Origin", "*");
   private static ResultMatcher ok = MockMvcResultMatchers.status().isOk();
   private static ResultMatcher notFound = MockMvcResultMatchers.status().isNotFound();
+  private static ResultMatcher unauthorized = MockMvcResultMatchers.status().isUnauthorized();
+
+  private static String accessToken;
+  private static String clientId;
 
   @BeforeClass
   public static void setup() throws FileNotFoundException {
     App.initializeAppDB();
+    accessToken = AuthTestHelper.newToken();
+    clientId = AuthTestHelper.registerClient(accessToken);
 
     // Create a single test Claim
     Path modulesFolder = Paths.get("src/test/resources");
@@ -80,6 +87,7 @@ public class ClaimResponseEndpointTest {
 
   @AfterClass
   public static void cleanup() {
+    AuthTestHelper.deleteClient(clientId);
     App.getDB().delete(Table.CLAIM, "minimal", "1");
     App.getDB().delete(Table.CLAIM_RESPONSE, "minimal", "1");
   }
@@ -91,6 +99,7 @@ public class ClaimResponseEndpointTest {
     MockMvc mockMvc = builder.build();
     MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.get("/ClaimResponse?patient.identifier=1")
         .header("Accept", "application/fhir+json").header("Access-Control-Request-Method", "GET")
+        .header("Authorization", "Bearer " + accessToken)
         .header("Origin", "http://localhost:" + port);
 
     // Test the response has CORS headers and returned status 200
@@ -113,6 +122,7 @@ public class ClaimResponseEndpointTest {
     MockMvc mockMvc = builder.build();
     MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.get("/ClaimResponse?patient.identifier=1")
         .header("Accept", "application/fhir+xml").header("Access-Control-Request-Method", "GET")
+        .header("Authorization", "Bearer " + accessToken)
         .header("Origin", "http://localhost:" + port);
 
     // Test the response has CORS headers and returned status 200
@@ -144,7 +154,8 @@ public class ClaimResponseEndpointTest {
     MockMvc mockMvc = builder.build();
     MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders
         .get("/ClaimResponse?identifier=minimal&patient.identifier=1").header("Accept", "application/fhir+json")
-        .header("Access-Control-Request-Method", "GET").header("Origin", "http://localhost:" + port);
+        .header("Access-Control-Request-Method", "GET")
+        .header("Authorization", "Bearer " + accessToken).header("Origin", "http://localhost:" + port);
 
     // Test the response has CORS headers and returned status 200
     MvcResult mvcresult = mockMvc.perform(requestBuilder).andExpect(ok).andExpect(cors).andReturn();
@@ -166,7 +177,8 @@ public class ClaimResponseEndpointTest {
     MockMvc mockMvc = builder.build();
     MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders
         .get("/ClaimResponse?identifier=minimal&patient.identifier=1").header("Accept", "application/fhir+xml")
-        .header("Access-Control-Request-Method", "GET").header("Origin", "http://localhost:" + port);
+        .header("Access-Control-Request-Method", "GET")
+        .header("Authorization", "Bearer " + accessToken).header("Origin", "http://localhost:" + port);
 
     // Test the response has CORS headers and returned status 200
     MvcResult mvcresult = mockMvc.perform(requestBuilder).andExpect(ok).andExpect(cors).andReturn();
@@ -189,9 +201,69 @@ public class ClaimResponseEndpointTest {
     MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders
         .get("/ClaimResponse?identifier=ClaimResponseThatDoesNotExist&patient.identifier=45")
         .header("Accept", "application/fhir+json").header("Access-Control-Request-Method", "GET")
+        .header("Authorization", "Bearer " + accessToken)
         .header("Origin", "http://localhost:" + port);
 
     // Test the response has CORS headers and returned status 404
     mockMvc.perform(requestBuilder).andExpect(notFound).andExpect(cors);
+  }
+
+  @Test
+  public void getClaimResponseWithoutTokenIsUnauthorized() throws Exception {
+    MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
+    MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders
+        .get("/ClaimResponse?identifier=unauthNoToken&patient.identifier=1").header("Accept", "application/fhir+json")
+        .header("Access-Control-Request-Method", "GET").header("Origin", "http://localhost:" + port);
+
+    MvcResult mvcresult = mockMvc.perform(requestBuilder).andExpect(unauthorized).andExpect(cors).andReturn();
+    Assert.assertFalse(mvcresult.getResponse().getContentAsString().contains("resourceType"));
+    Assert.assertEquals(AuditEventOutcome.MINOR_FAILURE.toCode(), AuthTestHelper.latestAuditOutcome("ClaimResponse/unauthNoToken"));
+  }
+
+  @Test
+  public void getClaimResponseWithInvalidTokenIsUnauthorized() throws Exception {
+    MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
+    MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders
+        .get("/ClaimResponse?identifier=unauthBadToken&patient.identifier=1").header("Accept", "application/fhir+json")
+        .header("Access-Control-Request-Method", "GET").header("Authorization", "Bearer not-a-valid-token")
+        .header("Origin", "http://localhost:" + port);
+
+    MvcResult mvcresult = mockMvc.perform(requestBuilder).andExpect(unauthorized).andExpect(cors).andReturn();
+    Assert.assertFalse(mvcresult.getResponse().getContentAsString().contains("resourceType"));
+    Assert.assertEquals(AuditEventOutcome.MINOR_FAILURE.toCode(), AuthTestHelper.latestAuditOutcome("ClaimResponse/unauthBadToken"));
+  }
+
+  @Test
+  public void getExistingClaimResponseWithoutTokenAuditsRequestedId() throws Exception {
+    MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
+    MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders
+        .get("/ClaimResponse?identifier=minimal&patient.identifier=1").header("Accept", "application/fhir+json")
+        .header("Access-Control-Request-Method", "GET").header("Origin", "http://localhost:" + port);
+
+    mockMvc.perform(requestBuilder).andExpect(unauthorized).andExpect(cors);
+    Assert.assertEquals(AuditEventOutcome.MINOR_FAILURE.toCode(), AuthTestHelper.latestAuditOutcome("ClaimResponse/minimal"));
+  }
+
+  @Test
+  public void searchClaimResponsesWithoutTokenIsUnauthorized() throws Exception {
+    MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
+    MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.get("/ClaimResponse?patient.identifier=1")
+        .header("Accept", "application/fhir+xml").header("Access-Control-Request-Method", "GET")
+        .header("Origin", "http://localhost:" + port);
+
+    mockMvc.perform(requestBuilder).andExpect(unauthorized).andExpect(cors);
+  }
+
+  @Test
+  public void getClaimResponseWithValidTokenIsOk() throws Exception {
+    MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
+    MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders
+        .get("/ClaimResponse?identifier=minimal&patient.identifier=1").header("Accept", "application/fhir+json")
+        .header("Access-Control-Request-Method", "GET").header("Authorization", "Bearer " + accessToken)
+        .header("Origin", "http://localhost:" + port);
+
+    MvcResult mvcresult = mockMvc.perform(requestBuilder).andExpect(ok).andExpect(cors).andReturn();
+    String body = mvcresult.getResponse().getContentAsString();
+    Assert.assertNotNull((Bundle) App.getFhirContext().newJsonParser().parseResource(body));
   }
 }
