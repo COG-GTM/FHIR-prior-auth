@@ -96,7 +96,7 @@ public class Endpoint {
             }
         }
 
-        Audit.createAuditEvent(AuditEventType.QUERY, AuditEventAction.R, AuditEventOutcome.MINOR_FAILURE, referenceUrl, request,
+        Audit.createAuditEvent(AuditEventType.QUERY, AuditEventAction.R, AuditEventOutcome.SUCCESS, referenceUrl, request,
                 description);
         return new ResponseEntity<>(formattedData, HttpStatus.OK);
     }

@@ -116,9 +116,12 @@ public class ClaimEndpoint {
     logger.info("POST /Claim/$submit fhir+" + requestType.name());
     App.setBaseUrl(Endpoint.getServiceBaseUrl(request));
 
-    if (!AuthUtils.validateAccessToken(request))
+    if (!AuthUtils.validateAccessToken(request)) {
+      Audit.createAuditEvent(AuditEventType.REST, AuditEventAction.E, AuditEventOutcome.MINOR_FAILURE, null, request,
+          "POST /Claim/$submit rejected: invalid access token");
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).contentType(MediaType.APPLICATION_JSON)
           .body("{ error: \"Invalid access token. Make sure to use Authorization: Bearer (token)\" }");
+    }
 
     String id = null;
     String patient = null;
