@@ -28,7 +28,7 @@ export PRIOR_AUTH_DB_FILE_PASSWORD="$(openssl rand -hex 32)"   # store this valu
 ./gradlew bootRun
 ```
 
-`docker-compose.yml` and `docker-compose-dev.yml` pass `PRIOR_AUTH_DB_FILE_PASSWORD` through from the host environment and refuse to start if it is unset. An existing unencrypted `databaseData/database.mv.db` cannot be opened once encryption is enabled; delete it (or export/re-import it with the H2 `Script`/`RunScript` tools) before upgrading. Losing the password means losing the data. `./gradlew test` uses a random per-build password and an isolated database under `build/test-db`.
+`docker-compose.yml`, `docker-compose-dev.yml` and `docker-compose-porter.yml` pass `PRIOR_AUTH_DB_FILE_PASSWORD` through from the environment and refuse to start if it is unset (for Porter, supply it as the sensitive `prior_auth_db_file_password` parameter). Startup also fails if the database cannot be opened with the supplied password. The optional `PRIOR_AUTH_DB_FILE` variable overrides the database location (absolute, or relative to the working directory). An existing unencrypted `databaseData/database.mv.db` cannot be opened once encryption is enabled; delete it (or export/re-import it with the H2 `Script`/`RunScript` tools) before upgrading. Losing the password means losing the data. `./gradlew test` uses a random per-build password and an isolated database under `build/test-db`.
 
 OAuth access tokens are stored in the `Client` table only as SHA-256 hashes and are validated by hashing the presented bearer token, so a copy of the database does not reveal usable tokens.
 

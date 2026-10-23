@@ -14,6 +14,13 @@ mixins:
   - docker-compose
 
 parameters:
+  - name: prior_auth_db_file_password
+    description: "H2 AES file encryption password for prior-auth (see README Database encryption at rest)"
+    type: string
+    sensitive: true
+    env: PRIOR_AUTH_DB_FILE_PASSWORD
+
+parameters:
 - name: vsac_api_key
   type: string
 

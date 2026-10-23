@@ -90,10 +90,13 @@ public class Database {
   }
 
   public Database(String relativePath) {
-    String dbFile = System.getenv(DB_FILE_ENV);
-    JDBC_STRING = JDBC_TYPE + relativePath + (dbFile == null || dbFile.isBlank() ? JDBC_FILE : dbFile) + JDBC_OPTIONS;
+    this(relativePath, System.getenv(DB_FILE_ENV), System.getenv(DB_FILE_PASSWORD_ENV));
+  }
+
+  Database(String relativePath, String dbFile, String filePassword) {
+    JDBC_STRING = JDBC_TYPE + resolveDbFile(relativePath, dbFile) + JDBC_OPTIONS;
     // H2 expects "<filePassword> <userPassword>" when CIPHER is set
-    JDBC_PASSWORD = resolveFilePassword(System.getenv(DB_FILE_PASSWORD_ENV)) + " ";
+    JDBC_PASSWORD = resolveFilePassword(filePassword) + " ";
     logger.info("JDBC: " + JDBC_STRING);
     SQL_FILE = relativePath + PropertyProvider.getProperty("database_sql");
     try (Connection connection = getConnection()) {
@@ -105,9 +108,16 @@ public class Database {
       script = new String(Files.readAllBytes(Paths.get(relativePath + scriptFile).toAbsolutePath()));
     } catch (SQLException e) {
       logger.log(Level.SEVERE, "Database::Database:SQLException", e);
+      throw new IllegalStateException("Unable to open the encrypted database (check " + DB_FILE_PASSWORD_ENV + ")", e);
     } catch (IOException e) {
       logger.log(Level.SEVERE, "Database::Database:IOException", e);
     }
+  }
+
+  static String resolveDbFile(String relativePath, String dbFile) {
+    if (dbFile == null || dbFile.isBlank())
+      return relativePath + JDBC_FILE;
+    return Paths.get(dbFile).isAbsolute() ? dbFile : relativePath + dbFile;
   }
 
   /**

@@ -43,6 +43,23 @@ public class DatabaseEncryptionTest {
   }
 
   @Test
+  public void testDatabaseRefusesToStartWithWrongPassword() throws IOException {
+    Path dir = Files.createTempDirectory("pas-db-");
+    String file = dir.resolve("database").toString();
+    new Database("./", file, "correctpassword");
+    Assert.assertTrue(Files.exists(Paths.get(file + ".mv.db")));
+    Assert.assertThrows(IllegalStateException.class, () -> new Database("./", file, "wrongpassword"));
+  }
+
+  @Test
+  public void testDbFileOverrideResolution() {
+    Assert.assertEquals("./databaseData/database", Database.resolveDbFile("./", null));
+    Assert.assertEquals("./build/db", Database.resolveDbFile("./", "build/db"));
+    String absolute = Paths.get("build", "db").toAbsolutePath().toString();
+    Assert.assertEquals(absolute, Database.resolveDbFile("./", absolute));
+  }
+
+  @Test
   public void testFilePasswordIsRequired() {
     Assert.assertThrows(IllegalStateException.class, () -> Database.resolveFilePassword(null));
     Assert.assertThrows(IllegalStateException.class, () -> Database.resolveFilePassword(""));
