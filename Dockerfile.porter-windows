@@ -5,6 +5,6 @@ RUN apt -y install curl
 RUN curl -fsSL https://get.docker.com -o get-docker.sh
 RUN chmod u+x get-docker.sh
 RUN ./get-docker.sh
-RUN curl -L https://cdn.porter.sh/latest/install-linux.sh | bash
-RUN export PATH="$PATH:~/.porter"
-ENV PATH="$PATH:~/.porter" 
+ARG PORTER_VERSION=v1.6.1
+RUN curl -fsSL https://cdn.porter.sh/${PORTER_VERSION}/install-linux.sh | bash
+ENV PATH="$PATH:/root/.porter"

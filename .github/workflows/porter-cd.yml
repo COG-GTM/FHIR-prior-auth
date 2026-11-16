@@ -5,6 +5,10 @@ on:
     branches: [ dev ]
   workflow_dispatch:
 
+env:
+  PORTER_VERSION: v1.6.1
+  PORTER_MIXIN_VERSION: v1.0.6
+
 jobs:
   porter-cd:
     runs-on: ubuntu-latest
@@ -17,13 +21,15 @@ jobs:
       shell: bash
 
     - name: Install Porter
-      run: curl -L https://cdn.porter.sh/canary/install-linux.sh | bash
+      run: curl -fsSL https://cdn.porter.sh/${PORTER_VERSION}/install-linux.sh | bash
 
     - name: Set Porter path
       run: echo "~/.porter" >> $GITHUB_PATH
 
     - name: Install Porter Mixins
-      run: porter mixins install docker; porter mixins install docker-compose
+      run: |
+        porter mixins install docker --version ${PORTER_MIXIN_VERSION}
+        porter mixins install docker-compose --version ${PORTER_MIXIN_VERSION}
 
     - name: Build Invocation Image
       run: porter build 
