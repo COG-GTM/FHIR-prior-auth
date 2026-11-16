@@ -1,7 +1,9 @@
 package org.hl7.davinci.priorauth;
 
+import java.util.Arrays;
 import java.util.logging.Logger;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -22,14 +24,49 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public static final String SUBSCRIBE_USER_PREFIX = "/private";
     public static final String SUBSCRIBE_USER_NOTIFICATION = "/notification";
 
+    public static final String DEFAULT_ALLOWED_ORIGIN_PATTERNS = "http://localhost:[*],http://127.0.0.1:[*]";
+
     static final Logger logger = PALogger.getLogger();
+
+    @Value("${priorauth.websocket.allowed-origins:" + DEFAULT_ALLOWED_ORIGIN_PATTERNS + "}")
+    private String[] allowedOriginPatterns = DEFAULT_ALLOWED_ORIGIN_PATTERNS.split(",");
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint(ENDPOINT_CONNECT, SubscribeController.ENDPOINT_SUBSCRIBE)
                 // assign a random username as principal for each websocket client
                 // this is needed to be able to communicate with a specific client
-                .setHandshakeHandler(new AssignPrincipalHandshakeHandler()).setAllowedOrigins("*");
+                .setHandshakeHandler(new AssignPrincipalHandshakeHandler())
+                .setAllowedOriginPatterns(sanitizeOriginPatterns(allowedOriginPatterns));
+    }
+
+    /**
+     * Trim the configured origin patterns and drop blanks and any pattern whose
+     * host is a bare "*" (e.g. "*", "https://*", "http://*:[*]"), which would
+     * allow Cross-Site WebSocket Hijacking. Same-origin requests are always
+     * permitted by Spring.
+     */
+    static String[] sanitizeOriginPatterns(String[] patterns) {
+        if (patterns == null) {
+            return new String[0];
+        }
+        return Arrays.stream(patterns).map(String::trim).filter(p -> !p.isEmpty()).filter(p -> {
+            if (hasWildcardHost(p)) {
+                logger.warning("WebSocketConfig::Ignoring wildcard websocket allowed origin " + p);
+                return false;
+            }
+            return true;
+        }).toArray(String[]::new);
+    }
+
+    private static boolean hasWildcardHost(String pattern) {
+        int schemeEnd = pattern.indexOf("://");
+        String host = schemeEnd >= 0 ? pattern.substring(schemeEnd + 3) : pattern;
+        int hostEnd = host.indexOf(':');
+        if (hostEnd >= 0) {
+            host = host.substring(0, hostEnd);
+        }
+        return "*".equals(host);
     }
 
     @Override
