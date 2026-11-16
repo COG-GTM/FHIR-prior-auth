@@ -1,6 +1,7 @@
 package org.hl7.davinci.priorauth;
 
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +23,11 @@ public class LogEndpointTest {
 
   @Autowired
   private WebApplicationContext wac;
+
+  @BeforeClass
+  public static void setupClass() {
+    App.initializeAppDB();
+  }
 
   @Test
   public void getLogIsForbiddenWhenNotInDebugMode() throws Exception {
