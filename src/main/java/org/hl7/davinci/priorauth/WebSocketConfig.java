@@ -1,7 +1,9 @@
 package org.hl7.davinci.priorauth;
 
+import java.util.Arrays;
 import java.util.logging.Logger;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -24,12 +26,33 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     static final Logger logger = PALogger.getLogger();
 
+    /**
+     * Browser origins allowed to open a websocket in addition to the server's own
+     * origin. Wildcards are ignored to prevent Cross-Site WebSocket Hijacking.
+     */
+    @Value("${priorauth.websocket.allowed-origins:}")
+    private String[] allowedOrigins;
+
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint(ENDPOINT_CONNECT, SubscribeController.ENDPOINT_SUBSCRIBE)
                 // assign a random username as principal for each websocket client
                 // this is needed to be able to communicate with a specific client
-                .setHandshakeHandler(new AssignPrincipalHandshakeHandler()).setAllowedOrigins("*");
+                .setHandshakeHandler(new AssignPrincipalHandshakeHandler())
+                .setAllowedOrigins(getAllowedOrigins());
+    }
+
+    String[] getAllowedOrigins() {
+        if (allowedOrigins == null) {
+            return new String[0];
+        }
+        return Arrays.stream(allowedOrigins).map(String::trim).filter(origin -> {
+            if (origin.contains("*")) {
+                logger.warning("WebSocketConfig::Ignoring wildcard websocket origin: " + origin);
+                return false;
+            }
+            return !origin.isEmpty();
+        }).toArray(String[]::new);
     }
 
     @Override
