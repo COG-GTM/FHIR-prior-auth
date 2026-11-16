@@ -84,7 +84,7 @@ The recommended IDE for this set up is Visual Studio Code
 
 1. Download and install porter as per https://porter.sh/install/ instructions:
     ```bash
-    curl -L https://cdn.porter.sh/latest/install-mac.sh | bash 
+    curl -L https://cdn.porter.sh/v1.6.1/install-mac.sh | bash 
     ```
 2. Open `.bash_profile` and add the following lines at the very bottom:
     ```bash
