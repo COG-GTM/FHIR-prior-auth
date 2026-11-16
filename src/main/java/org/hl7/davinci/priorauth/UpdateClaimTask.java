@@ -107,6 +107,10 @@ public class UpdateClaimTask extends TimerTask {
             else if (entry.getResource() instanceof PractitionerRole) {
                 identifier = ((PractitionerRole)entry.getResource()).getIdentifierFirstRep();
             }
+            if (identifier == null) {
+                logger.warning("UpdateClaimTask::No requestor identifier for claim " + claimId + ", skipping subscription notifications");
+                return;
+            }
             orgId = identifier.getSystem() + "|" + identifier.getValue();
             constraintMap.put("orgId", orgId);
 
