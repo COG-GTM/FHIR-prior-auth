@@ -41,21 +41,32 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     }
 
     /**
-     * Trim the configured origin patterns and drop blanks and the catch-all "*",
-     * which would allow Cross-Site WebSocket Hijacking. Same-origin requests are
-     * always permitted by Spring.
+     * Trim the configured origin patterns and drop blanks and any pattern whose
+     * host is a bare "*" (e.g. "*", "https://*", "http://*:[*]"), which would
+     * allow Cross-Site WebSocket Hijacking. Same-origin requests are always
+     * permitted by Spring.
      */
     static String[] sanitizeOriginPatterns(String[] patterns) {
         if (patterns == null) {
             return new String[0];
         }
         return Arrays.stream(patterns).map(String::trim).filter(p -> !p.isEmpty()).filter(p -> {
-            if ("*".equals(p)) {
-                logger.warning("WebSocketConfig::Ignoring wildcard \"*\" websocket allowed origin");
+            if (hasWildcardHost(p)) {
+                logger.warning("WebSocketConfig::Ignoring wildcard websocket allowed origin " + p);
                 return false;
             }
             return true;
         }).toArray(String[]::new);
+    }
+
+    private static boolean hasWildcardHost(String pattern) {
+        int schemeEnd = pattern.indexOf("://");
+        String host = schemeEnd >= 0 ? pattern.substring(schemeEnd + 3) : pattern;
+        int hostEnd = host.indexOf(':');
+        if (hostEnd >= 0) {
+            host = host.substring(0, hostEnd);
+        }
+        return "*".equals(host);
     }
 
     @Override

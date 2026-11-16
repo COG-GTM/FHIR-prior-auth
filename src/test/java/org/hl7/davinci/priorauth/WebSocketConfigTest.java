@@ -70,8 +70,10 @@ public class WebSocketConfigTest {
     @Test
     public void sanitizeDropsWildcardAndBlanks() {
         String[] result = WebSocketConfig.sanitizeOriginPatterns(
-                new String[] { " https://payer.example.org ", "*", "", "http://localhost:[*]" });
-        Assert.assertArrayEquals(new String[] { "https://payer.example.org", "http://localhost:[*]" }, result);
+                new String[] { " https://payer.example.org ", "*", "", "https://*", "http://*:[*]", "*://*",
+                        "https://*.example.org", "http://localhost:[*]" });
+        Assert.assertArrayEquals(
+                new String[] { "https://payer.example.org", "https://*.example.org", "http://localhost:[*]" }, result);
         Assert.assertEquals(0, WebSocketConfig.sanitizeOriginPatterns(null).length);
     }
 }
