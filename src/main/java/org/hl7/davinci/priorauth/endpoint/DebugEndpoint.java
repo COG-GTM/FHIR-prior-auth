@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 import org.hl7.davinci.priorauth.Audit.AuditEventOutcome;
 import org.hl7.davinci.priorauth.Audit.AuditEventType;
 import org.hl7.davinci.priorauth.Database.Table;
+import org.hl7.davinci.priorauth.authorization.AuthUtils;
 import org.hl7.davinci.ruleutils.CqlUtils;
 import org.hl7.davinci.rules.PriorAuthRule;
 import org.hl7.fhir.r4.model.Bundle;
@@ -80,12 +81,36 @@ public class DebugEndpoint {
   @GetMapping("/ReleaseClaim")
   public ResponseEntity<String> releaseClaim(HttpServletRequest request, @RequestParam(name = "identifier", required = false) String id)
   {
+    if (!App.isDebugModeEnabled()) {
+      logger.warning("DebugEndpoint::release claim disabled");
+      String description = "Attempted to release claim but app not in debug mode";
+      Audit.createAuditEvent(AuditEventType.REST, AuditEventAction.E, AuditEventOutcome.MINOR_FAILURE, null, request, description);
+      return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+    }
+
+    if (!AuthUtils.validateAccessToken(request)) {
+      String description = "Attempted to release claim with an invalid access token";
+      Audit.createAuditEvent(AuditEventType.REST, AuditEventAction.E, AuditEventOutcome.MINOR_FAILURE, null, request, description);
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).contentType(MediaType.APPLICATION_JSON)
+          .body("{ error: \"Invalid access token. Make sure to use Authorization: Bearer (token)\" }");
+    }
+
+    if (id == null || id.isEmpty()) {
+      return new ResponseEntity<>("identifier is required", HttpStatus.BAD_REQUEST);
+    }
+
     Map<String, Object> constraintMap = new HashMap<>();
     constraintMap.put("id", id);
     IBaseResource bundle = App.getDB().read(Table.BUNDLE, constraintMap);
 
     if (bundle == null) {
       return new ResponseEntity<>("Bundle not found for " + id, HttpStatus.BAD_REQUEST);
+    }
+
+    if (!UpdateClaimTask.isReleasable(id)) {
+      String description = "Attempted to release claim " + id + " which is not pended";
+      Audit.createAuditEvent(AuditEventType.REST, AuditEventAction.E, AuditEventOutcome.MINOR_FAILURE, null, request, description);
+      return new ResponseEntity<>("Claim " + id + " is not pended and cannot be released", HttpStatus.BAD_REQUEST);
     }
 
     String patient  = FhirUtils.getPatientIdentifierFromBundle((Bundle)bundle);
@@ -95,6 +120,8 @@ public class DebugEndpoint {
     }
 
     new UpdateClaimTask((Bundle)bundle, id, patient).run();
+    String description = "Released pended claim " + id + " in debug mode";
+    Audit.createAuditEvent(AuditEventType.REST, AuditEventAction.E, AuditEventOutcome.SUCCESS, null, request, description);
 
     return new ResponseEntity<>("Release for " + id + " scheduled.", HttpStatus.OK);
   }

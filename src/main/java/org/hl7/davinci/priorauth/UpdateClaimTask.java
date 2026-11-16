@@ -54,11 +54,36 @@ public class UpdateClaimTask extends TimerTask {
 
         // Get the claim from the database
         Claim claim = (Claim) App.getDB().read(Table.CLAIM, Collections.singletonMap("id", claimId));
-        if (claim != null && !FhirUtils.isCancelled(Table.CLAIM, claimId))
+        if (claim != null && isReleasable(claimId))
             return ClaimResponseFactory.generateAndStoreClaimResponse(bundle, claim, id, Disposition.GRANTED,
                     ClaimResponseStatus.ACTIVE, patient, true);
         else
             return null;
+    }
+
+    /**
+     * Only the most recent, non-cancelled version of a claim whose latest
+     * ClaimResponse outcome is pended may be granted.
+     *
+     * @param claimId - the Claim ID.
+     * @return true if the claim can be released, false otherwise.
+     */
+    public static boolean isReleasable(String claimId) {
+        if (claimId == null || App.getDB().read(Table.CLAIM, Collections.singletonMap("id", claimId)) == null)
+            return false;
+        if (FhirUtils.isCancelled(Table.CLAIM, claimId)) {
+            logger.warning("UpdateClaimTask::Claim " + claimId + " is cancelled and cannot be released");
+            return false;
+        }
+        if (!claimId.equals(App.getDB().getMostRecentId(claimId))) {
+            logger.warning("UpdateClaimTask::Claim " + claimId + " has been superseded and cannot be released");
+            return false;
+        }
+        if (!FhirUtils.isPended(claimId)) {
+            logger.warning("UpdateClaimTask::Claim " + claimId + " is not pended and cannot be released");
+            return false;
+        }
+        return true;
     }
 
     @Override
