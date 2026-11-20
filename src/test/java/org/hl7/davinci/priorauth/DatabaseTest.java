@@ -67,6 +67,17 @@ public class DatabaseTest {
   }
 
   @Test
+  public void testPatientSearchUsesIndex() {
+    String[][] tables = { { "Bundle", "IDX_BUNDLE_PATIENT" }, { "Claim", "IDX_CLAIM_PATIENT" },
+        { "ClaimResponse", "IDX_CLAIMRESPONSE_PATIENT" } };
+    for (String[] table : tables) {
+      String plan = App.getDB().runQuery("EXPLAIN SELECT id, patient, resource FROM " + table[0]
+          + " WHERE patient = 'pat013'", false, false);
+      Assert.assertTrue(plan, plan.toUpperCase().contains(table[1]));
+    }
+  }
+
+  @Test
   public void testSearch() {
     Bundle results = App.getDB().search(Table.BUNDLE, Collections.singletonMap("patient", "pat013"));
     Assert.assertNotNull(results);

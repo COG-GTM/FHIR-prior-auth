@@ -82,4 +82,8 @@ BEGIN TRANSACTION;
         "organization" clob
     );
 
+    CREATE INDEX IF NOT EXISTS idx_bundle_patient ON Bundle ("patient");
+    CREATE INDEX IF NOT EXISTS idx_claim_patient ON Claim ("patient");
+    CREATE INDEX IF NOT EXISTS idx_claimresponse_patient ON ClaimResponse ("patient");
+
 COMMIT;
